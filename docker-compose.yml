@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-brikonnect}
+      POSTGRES_USER: ${POSTGRES_USER:-brikonnect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-brikonnect}
+    ports:
+      - "5432:5432"
+    volumes:
+      - brikonnect_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-brikonnect} -d ${POSTGRES_DB:-brikonnect}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      gunicorn app.main:app
+      -k uvicorn.workers.UvicornWorker
+      -w 2
+      -b 0.0.0.0:8000
+      --access-logfile -
+      --error-logfile -
+
+volumes:
+  brikonnect_db:
