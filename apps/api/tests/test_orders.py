@@ -28,13 +28,13 @@ async def seed_owner(db_session, slug: str, email: str, password: str):
 
 @pytest.mark.asyncio
 async def test_orders_status_flow(db_session):
-    await seed_owner(db_session, "orders", "owner@orders.local", "orders123")
+    await seed_owner(db_session, "orders", "owner@orders.example.com", "orders123")
 
     headers = {"host": "orders.brikonnect.com"}
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
-            json={"email": "owner@orders.local", "password": "orders123"},
+            json={"email": "owner@orders.example.com", "password": "orders123"},
         )
         assert login.status_code == 200
 

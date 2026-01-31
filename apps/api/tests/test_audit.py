@@ -28,13 +28,13 @@ async def seed_owner(db_session, slug: str, email: str, password: str):
 
 @pytest.mark.asyncio
 async def test_audit_revert_inventory(db_session):
-    await seed_owner(db_session, "audit", "owner@audit.local", "audit123")
+    await seed_owner(db_session, "audit", "owner@audit.example.com", "audit123")
 
     headers = {"host": "audit.brikonnect.com"}
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
-            json={"email": "owner@audit.local", "password": "audit123"},
+            json={"email": "owner@audit.example.com", "password": "audit123"},
         )
         assert login.status_code == 200
 

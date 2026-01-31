@@ -28,13 +28,13 @@ async def seed_owner(db_session, slug: str, email: str, password: str):
 
 @pytest.mark.asyncio
 async def test_inventory_crud_with_locations(db_session):
-    await seed_owner(db_session, "demo", "owner@demo.local", "demo123")
+    await seed_owner(db_session, "demo", "owner@demo.example.com", "demo123")
 
     headers = {"host": "demo.brikonnect.com"}
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
-            json={"email": "owner@demo.local", "password": "demo123"},
+            json={"email": "owner@demo.example.com", "password": "demo123"},
         )
         assert login.status_code == 200
 
@@ -84,13 +84,13 @@ async def test_inventory_crud_with_locations(db_session):
 
 @pytest.mark.asyncio
 async def test_inventory_bulk_and_import(db_session):
-    await seed_owner(db_session, "bulk", "owner@bulk.local", "bulk123")
+    await seed_owner(db_session, "bulk", "owner@bulk.example.com", "bulk123")
 
     headers = {"host": "bulk.brikonnect.com"}
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
-            json={"email": "owner@bulk.local", "password": "bulk123"},
+            json={"email": "owner@bulk.example.com", "password": "bulk123"},
         )
         assert login.status_code == 200
 
