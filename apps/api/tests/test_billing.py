@@ -55,7 +55,7 @@ def _make_order_payload(total: str, ordered_at: datetime) -> OrderCreate:
 
 @pytest.mark.asyncio
 async def test_gmv_calculation(db_session):
-    tenant, _ = await seed_owner(db_session, "billing-gmv", "owner@gmv.local", "billing123")
+    tenant, _ = await seed_owner(db_session, "billing-gmv", "owner@gmv.example.com", "billing123")
 
     now = datetime.now(timezone.utc)
     await create_order(db_session, tenant.id, _make_order_payload("10.00", now - timedelta(days=1)))
@@ -72,7 +72,12 @@ async def test_gmv_calculation(db_session):
 
 @pytest.mark.asyncio
 async def test_prorata_version_change(db_session):
-    tenant, user = await seed_owner(db_session, "billing-prorata", "owner@prorata.local", "billing123")
+    tenant, user = await seed_owner(
+        db_session,
+        "billing-prorata",
+        "owner@prorata.example.com",
+        "billing123",
+    )
 
     period_start = date(2026, 1, 1)
     period_end = date(2026, 1, 31)
@@ -116,7 +121,12 @@ async def test_prorata_version_change(db_session):
 
 @pytest.mark.asyncio
 async def test_minimum_threshold_accumulation(db_session):
-    tenant, _ = await seed_owner(db_session, "billing-minimum", "owner@minimum.local", "billing123")
+    tenant, _ = await seed_owner(
+        db_session,
+        "billing-minimum",
+        "owner@minimum.example.com",
+        "billing123",
+    )
 
     period_start = date(2026, 2, 1)
     period_end = date(2026, 2, 28)
@@ -136,7 +146,12 @@ async def test_minimum_threshold_accumulation(db_session):
 
 @pytest.mark.asyncio
 async def test_invoice_generation(db_session):
-    tenant, _ = await seed_owner(db_session, "billing-invoice", "owner@invoice.local", "billing123")
+    tenant, _ = await seed_owner(
+        db_session,
+        "billing-invoice",
+        "owner@invoice.example.com",
+        "billing123",
+    )
 
     period_start = date(2026, 3, 1)
     period_end = date(2026, 3, 31)
@@ -161,7 +176,12 @@ async def test_overdue_suspension(db_session):
     if today.day <= 5:
         pytest.skip("Overdue suspension runs after day 5")
 
-    tenant, _ = await seed_owner(db_session, "billing-overdue", "owner@overdue.local", "billing123")
+    tenant, _ = await seed_owner(
+        db_session,
+        "billing-overdue",
+        "owner@overdue.example.com",
+        "billing123",
+    )
     period_start = today.replace(day=1)
     period_end = today
     invoice = await generate_invoice(db_session, tenant, period_start, period_end)
