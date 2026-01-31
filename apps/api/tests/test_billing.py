@@ -4,7 +4,6 @@ from decimal import Decimal
 
 import pytest
 
-from app.core.security import hash_password
 from app.modules.billing.models import BillingAccumulated, TenantVersionHistory
 from app.modules.billing.service import calculate_gmv, check_overdue_invoices, generate_invoice
 from app.modules.orders.schemas import OrderCreate, OrderLineCreate
@@ -21,11 +20,12 @@ async def seed_owner(db_session, slug: str, email: str, password: str):
     await rbac_service.seed_system_roles(db_session, tenant.id)
     roles = await rbac_service.list_roles(db_session, tenant.id)
     owner_role = next(role for role in roles if role.name == "owner")
+    password_hash = f"hashed:{password}"
     user = await create_user(
         db_session,
         tenant.id,
         UserCreate(email=email, password=password),
-        hash_password(password),
+        password_hash,
     )
     await set_user_roles(db_session, tenant.id, user.id, [owner_role.id])
     await db_session.commit()
