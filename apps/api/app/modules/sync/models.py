@@ -3,10 +3,11 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 
 class SyncRun(Base):
@@ -33,7 +34,7 @@ class SyncRun(Base):
     mode: Mapped[str] = mapped_column(String(20), nullable=False)
     direction: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'PENDING'"))
-    plan_summary: Mapped[dict | None] = mapped_column(JSONB)
+    plan_summary: Mapped[dict | None] = mapped_column(JSONBCompatible)
     started_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     error_message: Mapped[str | None] = mapped_column(Text)
@@ -75,9 +76,9 @@ class SyncPlanItem(Base):
     )
     source_external_id: Mapped[str | None] = mapped_column(String(64))
     target_external_id: Mapped[str | None] = mapped_column(String(64))
-    before_state: Mapped[dict | None] = mapped_column(JSONB)
-    after_state: Mapped[dict | None] = mapped_column(JSONB)
-    changes: Mapped[list | None] = mapped_column(JSONB)
+    before_state: Mapped[dict | None] = mapped_column(JSONBCompatible)
+    after_state: Mapped[dict | None] = mapped_column(JSONBCompatible)
+    changes: Mapped[list | None] = mapped_column(JSONBCompatible)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'PENDING'"))
     error_message: Mapped[str | None] = mapped_column(Text)
     applied_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))

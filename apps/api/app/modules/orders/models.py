@@ -4,10 +4,11 @@ import uuid
 from decimal import Decimal
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 
 class Order(Base):
@@ -41,7 +42,7 @@ class Order(Base):
     buyer_email: Mapped[str | None] = mapped_column(String(320))
     buyer_username: Mapped[str | None] = mapped_column(String(100))
 
-    ship_to: Mapped[dict | None] = mapped_column(JSONB)
+    ship_to: Mapped[dict | None] = mapped_column(JSONBCompatible)
     shipping_method: Mapped[str | None] = mapped_column(String(50))
 
     subtotal: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))

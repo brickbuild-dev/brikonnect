@@ -3,10 +3,11 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import DateTime, String, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 
 class Event(Base):
@@ -20,6 +21,6 @@ class Event(Base):
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONBCompatible, nullable=False)
     processed_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))

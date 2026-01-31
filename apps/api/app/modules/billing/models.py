@@ -16,10 +16,11 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 
 class TenantVersionHistory(Base):
@@ -99,7 +100,7 @@ class Invoice(Base):
     payment_method: Mapped[str | None] = mapped_column(String(20))
     payment_reference: Mapped[str | None] = mapped_column(String(100))
 
-    store_breakdown: Mapped[dict | None] = mapped_column(JSONB)
+    store_breakdown: Mapped[dict | None] = mapped_column(JSONBCompatible)
 
     created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
     updated_at: Mapped[object] = mapped_column(

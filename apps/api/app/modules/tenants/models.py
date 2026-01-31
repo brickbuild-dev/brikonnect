@@ -3,10 +3,11 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import Boolean, DateTime, String, func, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 
 class Tenant(Base):
@@ -21,7 +22,11 @@ class Tenant(Base):
     slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     plan: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'free'"))
-    settings: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    settings: Mapped[dict] = mapped_column(
+        JSONBCompatible,
+        nullable=False,
+        server_default=text("'{}'"),
+    )
     currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default=text("'EUR'"))
     current_version: Mapped[str] = mapped_column(
         String(10),

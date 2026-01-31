@@ -3,10 +3,11 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import DateTime, ForeignKey, String, text
-from sqlalchemy.dialects.postgresql import INET, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import INETCompatible
 
 
 class Session(Base):
@@ -32,7 +33,7 @@ class Session(Base):
     )
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     user_agent: Mapped[str | None] = mapped_column(String, nullable=True)
-    ip_address: Mapped[str | None] = mapped_column(INET, nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(INETCompatible, nullable=True)
     expires_at: Mapped[object] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
