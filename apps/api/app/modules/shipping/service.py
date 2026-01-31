@@ -27,10 +27,7 @@ def _build_address(ship_to: dict | None, fallback_name: str | None = None) -> Ad
 
 
 def _build_package(order: Order) -> Package:
-    weight_grams = 500
-    if order.lines:
-        weight_grams = max(100, sum([line.qty_ordered for line in order.lines]) * 50)
-    return Package(weight_grams=weight_grams, length_cm=20, width_cm=15, height_cm=5)
+    return Package(weight_grams=500, length_cm=20, width_cm=15, height_cm=5)
 
 
 async def list_carriers(db: AsyncSession, tenant_id) -> list[ShippingCarrierConfig]:
