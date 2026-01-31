@@ -121,6 +121,103 @@ CREATE TABLE currency_rates (
 
 ---
 
+## Design System
+
+### Theming: Dark Mode + Light Mode
+
+O frontend suporta **dois temas** que o utilizador pode alternar:
+
+| Modo | Descrição |
+|------|-----------|
+| **Light** | Tema claro, padrão para novos utilizadores |
+| **Dark** | Tema escuro, reduz fatiga visual |
+| **System** | Segue preferência do OS (prefers-color-scheme) |
+
+### Implementação (Tailwind + shadcn/ui)
+
+```tsx
+// Theme context com persistência
+interface ThemeConfig {
+  mode: 'light' | 'dark' | 'system';
+  resolvedMode: 'light' | 'dark'; // Actual applied theme
+}
+
+// CSS Variables approach (tailwind.config.js)
+// Dark mode via class strategy: <html class="dark">
+module.exports = {
+  darkMode: 'class',
+  // ...
+}
+
+// Theme toggle persisted in:
+// - Web: localStorage + user preferences in DB
+// - Extension: chrome.storage.local
+```
+
+### Design Tokens (Base)
+
+```css
+/* Light mode */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --muted: 210 40% 96%;
+  --accent: 210 40% 96%;
+  --destructive: 0 84.2% 60.2%;
+  --border: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
+}
+
+/* Dark mode */
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --muted: 217.2 32.6% 17.5%;
+  --accent: 217.2 32.6% 17.5%;
+  --destructive: 0 62.8% 30.6%;
+  --border: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 48%;
+}
+```
+
+### UI Components (shadcn/ui)
+
+Componentes pré-configurados com suporte a dark mode:
+- Button, Input, Select, Checkbox, Radio
+- Card, Dialog, Sheet, Dropdown
+- Table, DataTable (com sorting/filtering)
+- Tabs, Accordion, Collapsible
+- Toast, Alert, Badge
+- Calendar, DatePicker
+- Command (search palette)
+
+### Responsive Breakpoints
+
+| Breakpoint | Width | Target |
+|------------|-------|--------|
+| `sm` | 640px | Mobile landscape |
+| `md` | 768px | Tablet |
+| `lg` | 1024px | Desktop |
+| `xl` | 1280px | Large desktop |
+| `2xl` | 1536px | Extra large |
+
+**Mobile-first approach:** Componentes base para mobile, ajustados em breakpoints maiores.
+
+### Extension UI
+
+A extensão usa o mesmo design system (packages/ui), garantindo:
+- Consistência visual entre web e extension
+- Mesmo toggle dark/light
+- Componentes reutilizados
+
+---
+
 ## Estrutura do Repositório
 
 ```
@@ -1848,134 +1945,358 @@ interface ExtensionStorage {
 
 ### Modelo de Preços: % do GMV (Gross Merchandise Value)
 
-A cobrança é baseada numa **percentagem do valor líquido total de encomendas mensais**:
+Cobrança baseada numa **percentagem fixa do valor líquido total de encomendas**:
 - **Valor líquido** = subtotal dos produtos (SEM portes de envio)
-- Calculado mensalmente por tenant
-- Soma de todas as stores/canais associados
+- Soma de TODAS as stores/plataformas associadas ao tenant
+
+### Duas Versões do Produto
+
+| Versão | Features | Taxa GMV | Com Loja Brikick |
+|--------|----------|----------|------------------|
+| **Brikonnect Lite** | Picking + Sync apenas | **1%** | **1%** |
+| **Brikonnect Full** | Todas as funcionalidades | **2.5%** | **2%** |
+
+**Desconto Brikick:** Tenants com loja ativa no Brikick pagam 2% em vez de 2.5% na versão Full.
+
+### Brikonnect Lite vs Full
+
+| Feature | Lite | Full |
+|---------|------|------|
+| Inventory Management | ✓ | ✓ |
+| Orders Management | ✓ | ✓ |
+| **Picking System** | ✓ | ✓ |
+| **Sync entre Plataformas** | ✓ | ✓ |
+| Locations/Warehouse | Basic | Advanced |
+| Shipping Labels | ❌ | ✓ |
+| Analytics/Reports | Basic | Full |
+| API Access | ❌ | ✓ |
+| Webhooks | ❌ | ✓ |
+| Multi-user | 1 user | Unlimited |
+| Brickognize (Visual ID) | ❌ | ✓ |
+
+### Regras de Faturação
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CICLO DE FATURAÇÃO                                         │
+├─────────────────────────────────────────────────────────────┤
+│  Dia 1 do mês    → Fatura gerada (período: mês anterior)   │
+│  Dia 5 do mês    → Vencimento da fatura                    │
+│  Após dia 5      → Suspensão se não pago                   │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  MÍNIMO DE FATURAÇÃO                                        │
+├─────────────────────────────────────────────────────────────┤
+│  EUR: €10 mínimo                                            │
+│  USD: $5 mínimo                                             │
+│                                                             │
+│  Se não atingir → Acumula para o mês seguinte              │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  MÉTODOS DE PAGAMENTO                                       │
+├─────────────────────────────────────────────────────────────┤
+│  • Stripe (cartão de crédito)                              │
+│  • PayPal                                                   │
+│  • Cartão de crédito direto                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Mudança de Versão (Lite ↔ Full)
+
+User pode mudar de versão **a qualquer momento**. Billing é calculado **pro-rata**:
+
+```
+EXEMPLO: Janeiro (31 dias)
+─────────────────────────────────────────
+Dia 1-10 (10 dias):  Lite  @ 1%
+Dia 11-31 (21 dias): Full  @ 2.5%
+
+GMV Total do mês: €10,000
+
+Cálculo:
+├─ Lite:  (10/31) × €10,000 × 1%   = €32.26
+├─ Full:  (21/31) × €10,000 × 2.5% = €169.35
+└─ TOTAL: €201.61
+```
+
+### Modelo de Dados
 
 ```sql
--- Billing configuration
-CREATE TABLE billing_plans (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
-    name VARCHAR(50) NOT NULL, -- free/starter/growth/pro
-    
-    -- GMV-based pricing
-    gmv_percentage NUMERIC(5,4) NOT NULL, -- ex: 0.0250 = 2.5%
-    min_monthly_fee NUMERIC(10,2) DEFAULT 0, -- Mínimo mensal (floor)
-    max_monthly_fee NUMERIC(10,2), -- Máximo mensal (cap, NULL = sem limite)
-    
-    -- Feature limits
-    max_stores INTEGER,
-    max_users INTEGER,
-    sync_enabled BOOLEAN DEFAULT false,
-    api_keys_limit INTEGER DEFAULT 0,
-    webhooks_limit INTEGER DEFAULT 0,
-    
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
+-- Versões do produto
+CREATE TYPE product_version AS ENUM ('lite', 'full');
 
--- Tenant billing
-ALTER TABLE tenants ADD COLUMN billing_plan_id UUID REFERENCES billing_plans(id);
-ALTER TABLE tenants ADD COLUMN billing_email VARCHAR(320);
-ALTER TABLE tenants ADD COLUMN billing_started_at TIMESTAMPTZ;
-
--- Monthly GMV tracking
-CREATE TABLE billing_gmv_monthly (
+-- Histórico de versão do tenant (para billing pro-rata)
+CREATE TABLE tenant_version_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     
+    version product_version NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    ended_at TIMESTAMPTZ, -- NULL = current version
+    
+    -- Reason for change
+    changed_by UUID REFERENCES users(id),
+    change_reason VARCHAR(100), -- upgrade/downgrade/initial
+    
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_tenant_version_tenant ON tenant_version_history(tenant_id);
+CREATE INDEX idx_tenant_version_active ON tenant_version_history(tenant_id) 
+    WHERE ended_at IS NULL;
+
+-- Tenant billing config
+ALTER TABLE tenants ADD COLUMN current_version product_version DEFAULT 'lite';
+ALTER TABLE tenants ADD COLUMN has_brikick_store BOOLEAN DEFAULT false;
+ALTER TABLE tenants ADD COLUMN billing_currency VARCHAR(3) DEFAULT 'EUR';
+ALTER TABLE tenants ADD COLUMN billing_email VARCHAR(320);
+ALTER TABLE tenants ADD COLUMN stripe_customer_id VARCHAR(100);
+ALTER TABLE tenants ADD COLUMN paypal_payer_id VARCHAR(100);
+
+-- Invoices
+CREATE TABLE invoices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    
+    -- Period
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
     year_month VARCHAR(7) NOT NULL, -- '2026-01'
     
-    -- GMV breakdown
-    orders_count INTEGER DEFAULT 0,
-    gross_total NUMERIC(12,2) DEFAULT 0, -- Total com tudo
-    shipping_total NUMERIC(12,2) DEFAULT 0, -- Total de portes
-    net_gmv NUMERIC(12,2) DEFAULT 0, -- gross - shipping (base para billing)
+    -- Amounts
+    currency VARCHAR(3) NOT NULL,
+    net_gmv NUMERIC(12,2) NOT NULL, -- Total GMV líquido
     
-    -- Calculated fee
-    fee_percentage NUMERIC(5,4),
-    calculated_fee NUMERIC(10,2),
-    final_fee NUMERIC(10,2), -- After min/max caps
+    -- Pro-rata breakdown
+    lite_days INTEGER DEFAULT 0,
+    lite_gmv NUMERIC(12,2) DEFAULT 0,
+    lite_fee NUMERIC(10,2) DEFAULT 0, -- lite_gmv × 1%
+    
+    full_days INTEGER DEFAULT 0,
+    full_gmv NUMERIC(12,2) DEFAULT 0,
+    full_fee NUMERIC(10,2) DEFAULT 0, -- full_gmv × 2.5% or 2%
+    
+    brikick_discount_applied BOOLEAN DEFAULT false,
+    
+    subtotal NUMERIC(10,2) NOT NULL, -- lite_fee + full_fee
+    
+    -- Accumulated from previous months (if below minimum)
+    accumulated_from_previous NUMERIC(10,2) DEFAULT 0,
+    
+    total_due NUMERIC(10,2) NOT NULL, -- subtotal + accumulated
+    
+    -- Minimum threshold
+    minimum_threshold NUMERIC(10,2) NOT NULL, -- €10 or $5
+    below_minimum BOOLEAN DEFAULT false, -- If true, accumulates to next month
     
     -- Status
-    status VARCHAR(20) DEFAULT 'PENDING', -- PENDING/INVOICED/PAID
-    invoiced_at TIMESTAMPTZ,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    -- DRAFT → ISSUED → PAID / OVERDUE → SUSPENDED
+    
+    issued_at TIMESTAMPTZ,
+    due_date DATE, -- Day 5 of the month
     paid_at TIMESTAMPTZ,
     
-    -- Breakdown by store (for transparency)
-    store_breakdown JSONB, -- [{store_id, store_name, orders, net_gmv}]
+    -- Payment
+    payment_method VARCHAR(20), -- stripe/paypal/card
+    payment_reference VARCHAR(100),
+    
+    -- Store breakdown for transparency
+    store_breakdown JSONB,
+    -- [{store_id, store_name, channel, orders_count, net_gmv}]
     
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
     
     UNIQUE(tenant_id, year_month)
 );
-CREATE INDEX idx_billing_gmv_tenant ON billing_gmv_monthly(tenant_id, year_month);
+CREATE INDEX idx_invoices_tenant ON invoices(tenant_id);
+CREATE INDEX idx_invoices_status ON invoices(status);
+CREATE INDEX idx_invoices_due ON invoices(due_date) WHERE status = 'ISSUED';
 
--- Order GMV tracking (para calcular monthly)
--- Adicionado à tabela orders:
-ALTER TABLE orders ADD COLUMN shipping_cost_for_billing NUMERIC(12,2);
--- net_for_billing = grand_total - shipping_cost_for_billing
+-- Payment records
+CREATE TABLE payments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id),
+    invoice_id UUID NOT NULL REFERENCES invoices(id),
+    
+    amount NUMERIC(10,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    
+    method VARCHAR(20) NOT NULL, -- stripe/paypal/card
+    
+    -- Provider references
+    stripe_payment_intent_id VARCHAR(100),
+    paypal_transaction_id VARCHAR(100),
+    
+    status VARCHAR(20) NOT NULL, -- pending/succeeded/failed/refunded
+    
+    processed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_payments_invoice ON payments(invoice_id);
 ```
 
-### Planos Exemplo
-
-| Plan | GMV % | Min/mês | Max/mês | Stores | Users | Sync | API Keys |
-|------|-------|---------|---------|--------|-------|------|----------|
-| Free | 0% | €0 | €0 | 1 | 1 | ❌ | 0 |
-| Starter | 2.5% | €10 | €50 | 2 | 3 | ✓ | 1 |
-| Growth | 2.0% | €25 | €150 | 5 | 5 | ✓ | 3 |
-| Pro | 1.5% | €50 | €500 | ∞ | 10 | ✓ | 10 |
-
-### GMV Calculation Job (Monthly)
+### Billing Calculation Job
 
 ```python
-# Runs on 1st of each month for previous month
-async def calculate_monthly_gmv(tenant_id: UUID, year_month: str):
+# Runs on day 1 of each month at 00:05 UTC
+async def generate_monthly_invoice(tenant_id: UUID, year_month: str):
     """
-    1. Sum all orders.grand_total WHERE ordered_at in month
-    2. Subtract shipping costs
-    3. Apply plan percentage
-    4. Apply min/max caps
-    5. Create billing_gmv_monthly record
+    1. Get all orders for the period (excluding shipping costs)
+    2. Get version history for pro-rata calculation
+    3. Check if tenant has Brikick store (for discount)
+    4. Calculate fees per version period
+    5. Check minimum threshold
+    6. Create invoice (or accumulate if below minimum)
     """
-    orders = await get_orders_for_month(tenant_id, year_month)
     
-    gross_total = sum(o.grand_total for o in orders)
-    shipping_total = sum(o.shipping_cost or 0 for o in orders)
-    net_gmv = gross_total - shipping_total
+    tenant = await get_tenant(tenant_id)
+    period_start, period_end = get_month_range(year_month)
+    total_days = (period_end - period_start).days + 1
     
-    plan = await get_tenant_plan(tenant_id)
-    calculated_fee = net_gmv * plan.gmv_percentage
+    # Get version history for the month
+    version_periods = await get_version_periods(tenant_id, period_start, period_end)
     
-    # Apply caps
-    final_fee = max(calculated_fee, plan.min_monthly_fee or 0)
-    if plan.max_monthly_fee:
-        final_fee = min(final_fee, plan.max_monthly_fee)
+    # Get all orders (net GMV = grand_total - shipping)
+    orders = await get_orders_for_period(tenant_id, period_start, period_end)
+    total_net_gmv = sum(o.grand_total - (o.shipping_cost or 0) for o in orders)
     
-    return BillingGMVMonthly(
+    # Calculate pro-rata
+    lite_days = sum(p.days for p in version_periods if p.version == 'lite')
+    full_days = sum(p.days for p in version_periods if p.version == 'full')
+    
+    lite_gmv = total_net_gmv * (lite_days / total_days) if lite_days else 0
+    full_gmv = total_net_gmv * (full_days / total_days) if full_days else 0
+    
+    # Calculate fees
+    lite_fee = lite_gmv * Decimal('0.01')  # 1%
+    
+    # Full fee: 2% if has Brikick store, 2.5% otherwise
+    full_rate = Decimal('0.02') if tenant.has_brikick_store else Decimal('0.025')
+    full_fee = full_gmv * full_rate
+    
+    subtotal = lite_fee + full_fee
+    
+    # Add accumulated from previous months
+    accumulated = await get_accumulated_amount(tenant_id)
+    total_due = subtotal + accumulated
+    
+    # Check minimum threshold
+    minimum = Decimal('5.00') if tenant.billing_currency == 'USD' else Decimal('10.00')
+    below_minimum = total_due < minimum
+    
+    if below_minimum:
+        # Don't issue invoice, accumulate for next month
+        await accumulate_for_next_month(tenant_id, total_due)
+        return None
+    
+    # Create invoice
+    invoice = Invoice(
         tenant_id=tenant_id,
+        period_start=period_start,
+        period_end=period_end,
         year_month=year_month,
-        orders_count=len(orders),
-        gross_total=gross_total,
-        shipping_total=shipping_total,
-        net_gmv=net_gmv,
-        fee_percentage=plan.gmv_percentage,
-        calculated_fee=calculated_fee,
-        final_fee=final_fee
+        currency=tenant.billing_currency,
+        net_gmv=total_net_gmv,
+        lite_days=lite_days,
+        lite_gmv=lite_gmv,
+        lite_fee=lite_fee,
+        full_days=full_days,
+        full_gmv=full_gmv,
+        full_fee=full_fee,
+        brikick_discount_applied=tenant.has_brikick_store,
+        subtotal=subtotal,
+        accumulated_from_previous=accumulated,
+        total_due=total_due,
+        minimum_threshold=minimum,
+        below_minimum=False,
+        status='ISSUED',
+        issued_at=datetime.utcnow(),
+        due_date=date(period_end.year, period_end.month, 5),  # Day 5
     )
+    
+    return invoice
+
+
+# Runs daily at 00:10 UTC - check for overdue invoices
+async def check_overdue_invoices():
+    """
+    Find invoices past due date and not paid.
+    Suspend tenant privileges.
+    """
+    overdue = await get_overdue_invoices()
+    
+    for invoice in overdue:
+        invoice.status = 'OVERDUE'
+        await suspend_tenant(invoice.tenant_id)
+        await send_overdue_notification(invoice)
+```
+
+### Suspension on Non-Payment
+
+```sql
+-- Tenant suspension tracking
+ALTER TABLE tenants ADD COLUMN is_suspended BOOLEAN DEFAULT false;
+ALTER TABLE tenants ADD COLUMN suspended_at TIMESTAMPTZ;
+ALTER TABLE tenants ADD COLUMN suspension_reason VARCHAR(100);
+
+-- What happens when suspended:
+-- 1. API returns 402 Payment Required
+-- 2. UI shows "Account Suspended" banner with pay button
+-- 3. Sync jobs are paused
+-- 4. Can still VIEW data but cannot CREATE/UPDATE
+-- 5. After payment, auto-reactivate
 ```
 
 ### Billing API Endpoints
 
 ```yaml
-GET    /billing/current          # Current month GMV progress
-GET    /billing/history          # Past months
-GET    /billing/history/{month}  # Specific month detail
-GET    /billing/plan             # Current plan details
-POST   /billing/plan/upgrade     # Request plan change
+# Current status
+GET    /billing/status           # Current version, accumulated, next invoice estimate
+
+# Invoices
+GET    /billing/invoices         # List all invoices
+GET    /billing/invoices/{id}    # Invoice detail with breakdown
+GET    /billing/invoices/{id}/pdf # Download PDF
+
+# Version management
+GET    /billing/version          # Current version (lite/full)
+POST   /billing/version          # Change version {version: "lite"|"full"}
+GET    /billing/version/history  # Version change history
+
+# Payments
+POST   /billing/pay/{invoice_id} # Initiate payment
+       Body: {method: "stripe"|"paypal"}
+GET    /billing/payment-methods  # Saved payment methods
+POST   /billing/payment-methods  # Add payment method
+
+# Webhooks (from Stripe/PayPal)
+POST   /billing/webhooks/stripe
+POST   /billing/webhooks/paypal
+```
+
+### Payment Flow (Stripe Example)
+
+```
+1. User clicks "Pay Invoice"
+   ↓
+2. POST /billing/pay/{invoice_id} {method: "stripe"}
+   ↓
+3. Backend creates Stripe PaymentIntent
+   ↓
+4. Returns client_secret to frontend
+   ↓
+5. Frontend uses Stripe.js to collect card
+   ↓
+6. Stripe confirms payment
+   ↓
+7. Webhook received: payment_intent.succeeded
+   ↓
+8. Update invoice status → PAID
+   ↓
+9. If tenant was suspended → reactivate
 ```
 
 ---
