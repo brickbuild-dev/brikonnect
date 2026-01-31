@@ -1,10 +1,9 @@
-# Brikonnect — Production Scaffold (FastAPI + Postgres + Docker)
+# Brikonnect — Platform Monorepo
 
-This repository is a **production-oriented scaffold** for Brikonnect:
+Brikonnect is a SaaS platform for LEGO sellers, built as a monorepo:
 - **Backend:** FastAPI (async) + SQLAlchemy 2.0 + Alembic + Postgres
-- **Auth:** session-cookie (UI compatibility) + optional bearer token
-- **API:** versioned under `/api/v1/*`
-- **Operational basics:** structured logging, health checks, config via env, CORS, migrations, CI
+- **Frontend:** React 18 + TypeScript + Vite + TanStack Query/Router
+- **Monorepo:** Turborepo + pnpm
 
 > This scaffold is intentionally minimal in business logic but **complete in structure** so you can implement modules incrementally without refactoring the foundation.
 
@@ -33,6 +32,7 @@ docker compose exec api alembic upgrade head
 4) Open:
 - API docs: http://localhost:8000/docs
 - Health: http://localhost:8000/health
+- Web app: http://localhost:3000
 
 ---
 
@@ -41,7 +41,7 @@ docker compose exec api alembic upgrade head
 Requirements: Python 3.11+, Postgres 14+
 
 ```bash
-cd backend
+cd apps/api
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
@@ -51,18 +51,19 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
+Frontend:
+
+```bash
+cd apps/web
+pnpm install
+pnpm dev
+```
+
 ---
 
 ## API layout
 
-- `/api/v1/auth/*` — login/session, token (optional)
-- `/api/v1/tenants/*` — tenant bootstrap/settings
-- `/api/v1/inventory/*` — inventory core (stub)
-- `/api/v1/orders/*` — order core (stub)
-- `/api/v1/picker/*` — picking flows (stub)
-- `/api/v1/billing/*` — billing (stub)
-- `/api/v1/notifications/*` — notifications (stub)
-- `/api/v1/definitions/*` — enums/codes (stub)
+Core modules are organized under `apps/api/app/modules` and routed via `/api/v1/*`.
 
 > Endpoints are organized by module and routed through a single `api_router`.
 
@@ -70,7 +71,7 @@ uvicorn app.main:app --reload
 
 ## Production notes
 
-- Use a real secret for `BRIKONNECT_SECRET_KEY`.
+- Use real secrets for `SECRET_KEY` and `JWT_SECRET_KEY`.
 - Use TLS termination in front of the API (nginx/traefik) and set cookie flags accordingly.
 - Consider background jobs (Celery/RQ/Arq) for long-running tasks (price sync, image fetch, BOID-like resolution, etc.).
 

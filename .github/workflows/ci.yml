@@ -23,8 +23,10 @@ jobs:
           --health-retries=20
     env:
       DATABASE_URL: postgresql+asyncpg://brikonnect:brikonnect@localhost:5432/brikonnect
-      BRIKONNECT_SECRET_KEY: ci-secret
-      BRIKONNECT_ALLOWED_ORIGINS: http://localhost
+      SECRET_KEY: ci-secret
+      JWT_SECRET_KEY: ci-jwt-secret
+      CORS_ORIGINS: http://localhost
+      DEFAULT_TENANT_SLUG: demo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,10 +35,10 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements-dev.txt
+          pip install -r apps/api/requirements-dev.txt
       - name: Alembic upgrade
-        working-directory: backend
+        working-directory: apps/api
         run: alembic upgrade head
       - name: Tests
-        working-directory: backend
+        working-directory: apps/api
         run: pytest -q

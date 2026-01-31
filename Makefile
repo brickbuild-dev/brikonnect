@@ -13,7 +13,7 @@ migrate:
 	docker compose exec api alembic upgrade head
 
 test:
-	cd backend && pytest -q
+	cd apps/api && pytest -q
 
 fmt:
-	cd backend && ruff check --fix .
+	cd apps/api && ruff check --fix .
