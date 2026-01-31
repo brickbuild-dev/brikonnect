@@ -12,6 +12,8 @@ from app.modules.locations import models as location_models  # noqa: F401
 from app.modules.orders import models as order_models  # noqa: F401
 from app.modules.picker import models as picker_models  # noqa: F401
 from app.modules.rbac import models as rbac_models  # noqa: F401
+from app.modules.stores import models as store_models  # noqa: F401
+from app.modules.sync import models as sync_models  # noqa: F401
 from app.modules.tenants import models as tenant_models  # noqa: F401
 from app.modules.users import models as user_models  # noqa: F401
 from app.modules.webhooks import models as webhook_models  # noqa: F401

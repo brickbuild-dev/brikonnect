@@ -3,7 +3,18 @@ from __future__ import annotations
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -58,6 +69,9 @@ class InventoryItem(Base):
         cascade="all, delete-orphan",
     )
 
+    def key(self) -> tuple[str, str, int | None, str]:
+        return (self.item_type, self.item_no, self.color_id, self.condition)
+
 
 class InventoryItemLocation(Base):
     __tablename__ = "inventory_item_locations"
@@ -76,3 +90,37 @@ class InventoryItemLocation(Base):
 
     item = relationship("InventoryItem", back_populates="locations")
     location = relationship("Location", back_populates="items")
+
+
+class InventoryExternalId(Base):
+    __tablename__ = "inventory_external_ids"
+    __table_args__ = (
+        UniqueConstraint("store_id", "external_lot_id", name="uq_inventory_ext_store_lot"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    inventory_item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("inventory_items.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    store_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("stores.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    external_lot_id: Mapped[str | None] = mapped_column(String(64))
+    external_inventory_id: Mapped[str | None] = mapped_column(String(64))
+    last_synced_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))

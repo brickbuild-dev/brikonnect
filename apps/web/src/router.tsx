@@ -12,6 +12,9 @@ import { OrderDetailPage } from './routes/OrderDetailPage'
 import { OrdersPage } from './routes/OrdersPage'
 import { PickSessionDetailPage } from './routes/PickSessionDetailPage'
 import { PickSessionsPage } from './routes/PickSessionsPage'
+import { StoresPage } from './routes/StoresPage'
+import { SyncPage } from './routes/SyncPage'
+import { SyncRunDetailPage } from './routes/SyncRunDetailPage'
 import { WebhooksPage } from './routes/WebhooksPage'
 
 function RootLayout() {
@@ -100,6 +103,24 @@ const locationsRoute = createRoute({
   component: LocationsPage
 })
 
+const storesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/stores',
+  component: StoresPage
+})
+
+const syncRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/sync',
+  component: SyncPage
+})
+
+const syncRunDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/sync/$runId',
+  component: SyncRunDetailPage
+})
+
 const auditRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/audit',
@@ -116,8 +137,11 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
     dashboardRoute,
+    storesRoute,
     inventoryRoute,
     inventoryDetailRoute,
+    syncRoute,
+    syncRunDetailRoute,
     ordersRoute,
     orderDetailRoute,
     pickSessionsRoute,

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-prod"
     JWT_SECRET_KEY: str = "change-me-in-prod"
     JWT_ALGORITHM: str = "HS256"
+    ENCRYPTION_KEY: str = "change-me-encryption"
 
     ALLOWED_HOSTS: str = "localhost"
     CORS_ORIGINS: str = ""

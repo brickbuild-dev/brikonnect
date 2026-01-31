@@ -25,8 +25,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Link to="/" className="block font-medium text-slate-700">
               Dashboard
             </Link>
+            <Link to="/stores" className="block text-slate-500">
+              Stores
+            </Link>
             <Link to="/inventory" className="block text-slate-500">
               Inventory
+            </Link>
+            <Link to="/sync" className="block text-slate-500">
+              Sync
             </Link>
             <Link to="/orders" className="block text-slate-500">
               Orders

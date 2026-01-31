@@ -20,6 +20,19 @@ type RouteItem = {
   location_code?: string | null
 }
 
+type Store = {
+  id: string
+  name: string
+  channel: string
+  is_primary: boolean
+}
+
+type SyncRun = {
+  id: string
+  status: string
+  plan_summary?: { add: number; update: number; remove: number }
+}
+
 function SidePanelApp() {
   const [auth, setAuth] = useState<AuthState | null>(null)
   const [email, setEmail] = useState('')
@@ -27,11 +40,21 @@ function SidePanelApp() {
   const [sessions, setSessions] = useState<PickSession[]>([])
   const [selectedSession, setSelectedSession] = useState<PickSession | null>(null)
   const [routeItems, setRouteItems] = useState<RouteItem[]>([])
+  const [stores, setStores] = useState<Store[]>([])
+  const [syncRuns, setSyncRuns] = useState<SyncRun[]>([])
+  const [syncStatus, setSyncStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     void getAuth().then(setAuth)
   }, [])
+
+  useEffect(() => {
+    if (!auth) return
+    void loadSessions(auth.accessToken)
+    void loadStores(auth.accessToken)
+    void loadSyncRuns(auth.accessToken)
+  }, [auth])
 
   const handleLogin = async () => {
     setError(null)
@@ -39,6 +62,8 @@ function SidePanelApp() {
       const authState = await login(email, password)
       setAuth(authState)
       await loadSessions(authState.accessToken)
+      await loadStores(authState.accessToken)
+      await loadSyncRuns(authState.accessToken)
     } catch (err) {
       setError((err as Error).message)
     }
@@ -50,11 +75,24 @@ function SidePanelApp() {
     setSessions([])
     setSelectedSession(null)
     setRouteItems([])
+    setStores([])
+    setSyncRuns([])
+    setSyncStatus(null)
   }
 
   const loadSessions = async (token: string) => {
     const data = await apiFetch<PickSession[]>('/picker/sessions', {}, token)
     setSessions(data)
+  }
+
+  const loadStores = async (token: string) => {
+    const data = await apiFetch<Store[]>('/stores', {}, token)
+    setStores(data)
+  }
+
+  const loadSyncRuns = async (token: string) => {
+    const data = await apiFetch<SyncRun[]>('/sync/runs', {}, token)
+    setSyncRuns(data)
   }
 
   const loadRoute = async (session: PickSession, token: string) => {
@@ -77,6 +115,35 @@ function SidePanelApp() {
       },
       token
     )
+  }
+
+  const handleQuickSync = async () => {
+    if (!auth) return
+    setSyncStatus(null)
+    const source = stores.find((store) => store.is_primary) ?? stores[0]
+    const target = stores.find((store) => store.id !== source?.id)
+    if (!source || !target) {
+      setSyncStatus('Add at least two stores to sync.')
+      return
+    }
+    try {
+      const response = await apiFetch<{ run: SyncRun }>(
+        '/sync/preview',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            source_store_id: source.id,
+            target_store_id: target.id,
+            direction: 'SOURCE_TO_TARGET'
+          })
+        },
+        auth.accessToken
+      )
+      setSyncStatus(`Preview ${response.run.status.toLowerCase()}`)
+      await loadSyncRuns(auth.accessToken)
+    } catch (err) {
+      setSyncStatus((err as Error).message)
+    }
   }
 
   if (!auth) {
@@ -112,6 +179,19 @@ function SidePanelApp() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ fontSize: 16, fontWeight: 600 }}>Picking Sessions</h1>
         <button onClick={() => void handleLogout()}>Logout</button>
+      </div>
+
+      <div style={{ marginTop: 12, border: '1px solid #e2e8f0', padding: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 600 }}>Sync status</div>
+        <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+          {syncRuns[0]
+            ? `Latest: ${syncRuns[0].status} (add ${syncRuns[0].plan_summary?.add ?? 0})`
+            : 'No sync runs yet.'}
+        </div>
+        <button style={{ marginTop: 6 }} onClick={() => void handleQuickSync()}>
+          Quick sync preview
+        </button>
+        {syncStatus ? <div style={{ fontSize: 12, marginTop: 4 }}>{syncStatus}</div> : null}
       </div>
 
       <button style={{ marginTop: 8 }} onClick={() => void loadSessions(auth.accessToken)}>
