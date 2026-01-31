@@ -8,6 +8,9 @@ PERMISSIONS: list[str] = [
     "inventory:delete",
     "inventory:import",
     "inventory:export",
+    # Catalog
+    "catalog:read",
+    "catalog:import",
     # Orders
     "orders:read",
     "orders:write",
@@ -54,6 +57,8 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "inventory:delete",
         "inventory:import",
         "inventory:export",
+        # Catalog
+        "catalog:read",
         # Orders
         "orders:read",
         "orders:write",
@@ -86,6 +91,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
     ],
     "readonly": [
         "inventory:read",
+        "catalog:read",
         "orders:read",
         "stores:read",
         "picker:read",
