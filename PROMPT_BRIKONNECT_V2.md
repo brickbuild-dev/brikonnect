@@ -3,13 +3,80 @@
 ## Visão do Produto
 
 **Brikonnect** é uma plataforma SaaS para vendedores LEGO que unifica:
-- Gestão de inventário multi-canal (BrickLink, BrickOwl, Shopify, eBay)
+- Gestão de inventário multi-canal (BrickLink, BrickOwl, Brikick, Shopify, eBay)
 - Sincronização bidirecional de inventário entre canais
 - Fulfillment completo: picking → packing → shipping → tracking
 - Analytics e relatórios de performance
 - API pública + webhooks para integrações
 
-**Diferenciador crítico:** Arquitetura modular que permite reutilizar módulos core (Inventory, Orders, Picker) em outras plataformas (ex: marketplace LEGO) sem carregar o SaaS completo.
+**Diferenciador crítico:** Arquitetura modular que permite reutilizar módulos core (Inventory, Orders, Picker) em outras plataformas (ex: marketplace Brikick) sem carregar o SaaS completo.
+
+---
+
+## Configuração do Domínio
+
+| Tipo | URL | Descrição |
+|------|-----|-----------|
+| Marketing site | `www.brikonnect.com` | Landing page, docs, pricing |
+| App (tenant) | `{tenant}.brikonnect.com` | Cada cliente tem subdomínio próprio |
+| API | `api.brikonnect.com` | Endpoint centralizado da API |
+| CDN/Assets | `cdn.brikonnect.com` | Ficheiros estáticos (opcional) |
+
+### Tenant Resolution
+O backend extrai o tenant do header `Host`:
+```python
+# middleware
+def get_tenant_from_host(request: Request) -> str:
+    host = request.headers.get("host", "")
+    # demo.brikonnect.com → "demo"
+    subdomain = host.split(".")[0]
+    return subdomain
+```
+
+---
+
+## Configurações Globais
+
+| Setting | Valor | Notas |
+|---------|-------|-------|
+| **Idioma UI** | Inglês (EN) | Simplificado, língua internacional |
+| **Moedas suportadas** | EUR, USD, GBP | Tenant escolhe a sua moeda base |
+| **Timezone** | UTC (storage) | Display no timezone do tenant |
+| **Email sender** | `help@brikonnect.com` | Via SMTP configurável |
+| **Deploy** | VPS próprio | Docker Compose + Traefik |
+
+### Multi-Currency Support
+
+Cada tenant define a sua moeda base. Preços são armazenados e apresentados nessa moeda.
+
+```sql
+-- Currency no tenant
+ALTER TABLE tenants ADD COLUMN currency VARCHAR(3) DEFAULT 'EUR';
+-- Valores possíveis: EUR, USD, GBP
+
+-- Todos os valores monetários usam NUMERIC(12,4) para precisão
+-- Campos: unit_price, cost_basis, subtotal, shipping_cost, etc.
+```
+
+**Regras:**
+1. Valores armazenados na moeda do tenant (sem conversão automática)
+2. Sync entre canais: cada canal pode ter moeda diferente, conversão no momento do sync
+3. Reports: mostram na moeda do tenant
+4. API: aceita valores na moeda do tenant, retorna na mesma
+
+**Conversão (quando necessário):**
+- Rates guardados em `currency_rates` (atualização diária via API externa)
+- Usado apenas para sync cross-currency e analytics comparativos
+
+```sql
+CREATE TABLE currency_rates (
+    from_currency VARCHAR(3) NOT NULL,
+    to_currency VARCHAR(3) NOT NULL,
+    rate NUMERIC(12,6) NOT NULL,
+    fetched_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (from_currency, to_currency)
+);
+```
 
 ---
 
@@ -226,16 +293,29 @@ CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
 CREATE TABLE stores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    channel VARCHAR(30) NOT NULL, -- bricklink/brickowl/shopify/ebay/local
+    channel VARCHAR(30) NOT NULL, 
+    -- Supported channels: bricklink, brickowl, brikick, shopify, ebay, etsy, local
     name VARCHAR(100) NOT NULL,
     is_enabled BOOLEAN DEFAULT true,
     is_primary BOOLEAN DEFAULT false, -- Source of truth para sync
     settings JSONB DEFAULT '{}',
+    -- Settings example: {currency, language, auto_sync, sync_interval_hours}
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX idx_stores_tenant ON stores(tenant_id);
 CREATE UNIQUE INDEX idx_stores_primary ON stores(tenant_id) WHERE is_primary = true;
+
+-- Supported Channels:
+-- | Channel    | API Type    | Sync Support | Notes |
+-- |------------|-------------|--------------|-------|
+-- | bricklink  | OAuth 1.0a  | Full         | 5000 req/day limit |
+-- | brickowl   | API Key     | Full         | |
+-- | brikick    | API Key     | Full         | Internal marketplace |
+-- | shopify    | OAuth 2.0   | Full         | |
+-- | ebay       | OAuth 2.0   | Orders only  | Complex inventory mapping |
+-- | etsy       | OAuth 2.0   | Orders only  | |
+-- | local      | N/A         | N/A          | Manual/offline inventory |
 
 -- Store Credentials (encrypted)
 CREATE TABLE store_credentials (
@@ -532,40 +612,255 @@ CREATE INDEX idx_sync_plan_run ON sync_plan_items(sync_run_id);
 ### 7. Shipping
 
 ```sql
+-- Shipping Carriers (configuração por tenant)
+CREATE TABLE shipping_carriers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    
+    carrier_code VARCHAR(30) NOT NULL,
+    -- Supported: sendcloud, shipstation, pirateship, dhl_global, deutsche_post,
+    -- postnl, royal_mail, postnord, myparcel, shipmondo, spring_gds,
+    -- australia_post, canada_post, chitchats, stallion_express
+    
+    display_name VARCHAR(100),
+    is_enabled BOOLEAN DEFAULT true,
+    is_default BOOLEAN DEFAULT false,
+    
+    -- Credentials (encrypted)
+    credentials_encrypted BYTEA,
+    credentials_key_id VARCHAR(50),
+    
+    -- Settings
+    settings JSONB DEFAULT '{}', -- {default_service, label_format, etc}
+    
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    
+    UNIQUE(tenant_id, carrier_code)
+);
+
 CREATE TABLE shipments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     order_id UUID NOT NULL REFERENCES orders(id),
+    carrier_id UUID REFERENCES shipping_carriers(id),
     
-    carrier VARCHAR(50) NOT NULL,
+    carrier_code VARCHAR(30) NOT NULL,
     service_level VARCHAR(50),
     
     tracking_number VARCHAR(100),
     tracking_url TEXT,
     
     label_url TEXT,
+    label_data BYTEA, -- Label PDF/PNG stored directly
     label_format VARCHAR(10), -- PDF/PNG/ZPL
     
     status VARCHAR(20) DEFAULT 'PENDING',
-    -- PENDING → LABEL_CREATED → IN_TRANSIT → DELIVERED → RETURNED
+    -- PENDING → LABEL_CREATED → IN_TRANSIT → OUT_FOR_DELIVERY → DELIVERED → RETURNED
     
     ship_date DATE,
     estimated_delivery DATE,
+    actual_delivery DATE,
     
+    -- Package details
     weight_grams INTEGER,
     dimensions JSONB, -- {length, width, height, unit}
     
+    -- Cost
     cost NUMERIC(10,2),
     currency VARCHAR(3),
+    
+    -- External reference
+    external_shipment_id VARCHAR(100),
     
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX idx_shipments_order ON shipments(order_id);
 CREATE INDEX idx_shipments_tracking ON shipments(tracking_number);
+CREATE INDEX idx_shipments_status ON shipments(tenant_id, status);
 ```
 
-### 8. Audit & Events
+### Shipping Carriers Suportados
+
+| Carrier | Code | Região | API Type |
+|---------|------|--------|----------|
+| SendCloud | `sendcloud` | EU | REST API |
+| ShipStation | `shipstation` | Global | REST API |
+| PirateShip | `pirateship` | US | REST API |
+| DHL Global Mail | `dhl_global` | Global | REST API |
+| Deutsche Post | `deutsche_post` | DE/EU | REST API |
+| PostNL | `postnl` | NL/EU | REST API |
+| Royal Mail Click & Drop | `royal_mail` | UK | REST API |
+| PostNord | `postnord` | Nordic | REST API |
+| MyParcel | `myparcel` | NL/BE | REST API |
+| Shipmondo | `shipmondo` | Nordic | REST API |
+| Spring GDS | `spring_gds` | Global | REST API |
+| Australia Post | `australia_post` | AU | REST API |
+| Canada Post | `canada_post` | CA | REST API |
+| ChitChats | `chitchats` | CA | REST API |
+| Stallion Express | `stallion_express` | CA/US | REST API |
+
+**Implementação:** Adapter pattern — cada carrier implementa interface comum:
+```python
+class ShippingAdapter(Protocol):
+    async def get_rates(self, package: Package, destination: Address) -> list[Rate]
+    async def create_label(self, shipment: ShipmentRequest) -> LabelResponse
+    async def track(self, tracking_number: str) -> TrackingInfo
+    async def cancel(self, shipment_id: str) -> bool
+```
+
+### 8. LEGO Catalog (Cache System)
+
+O catálogo LEGO é construído incrementalmente através de:
+- **Rebrickable API** — Dados de peças, sets, cores (tem API key)
+- **BrickLink Catalog** — Ficheiros dump periódicos
+- **Cache local** — Pesquisas dos users alimentam a DB
+
+```sql
+-- Catalog Items (cache crescente)
+CREATE TABLE catalog_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    -- Identity
+    item_type VARCHAR(20) NOT NULL, -- PART/SET/MINIFIG/GEAR/BOOK/CATALOG/INSTRUCTION
+    item_no VARCHAR(64) NOT NULL,
+    
+    -- Basic info
+    name VARCHAR(500) NOT NULL,
+    category_id INTEGER,
+    category_name VARCHAR(200),
+    
+    -- Dimensions/Weight (when known)
+    weight_grams NUMERIC(10,2),
+    dimensions JSONB, -- {length, width, height, unit}
+    
+    -- Images
+    image_url TEXT,
+    thumbnail_url TEXT,
+    
+    -- Year info (for sets)
+    year_released INTEGER,
+    year_ended INTEGER,
+    
+    -- Additional data
+    alternate_nos TEXT[], -- Alternate part numbers
+    
+    -- Source tracking
+    source VARCHAR(20) NOT NULL, -- rebrickable/bricklink/manual
+    source_updated_at TIMESTAMPTZ,
+    
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    
+    UNIQUE(item_type, item_no)
+);
+CREATE INDEX idx_catalog_type_no ON catalog_items(item_type, item_no);
+CREATE INDEX idx_catalog_name ON catalog_items USING gin(to_tsvector('english', name));
+
+-- Catalog Colors
+CREATE TABLE catalog_colors (
+    id INTEGER PRIMARY KEY, -- BrickLink color ID
+    name VARCHAR(100) NOT NULL,
+    rgb VARCHAR(6), -- Hex color without #
+    
+    -- Mappings to other systems
+    brickowl_id INTEGER,
+    rebrickable_id INTEGER,
+    ldraw_id INTEGER,
+    lego_ids INTEGER[], -- LEGO color IDs (can be multiple)
+    
+    -- Type
+    color_type VARCHAR(20), -- Solid/Transparent/Chrome/Pearl/etc
+    
+    source VARCHAR(20) DEFAULT 'bricklink',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Catalog Categories
+CREATE TABLE catalog_categories (
+    id INTEGER PRIMARY KEY, -- BrickLink category ID
+    name VARCHAR(200) NOT NULL,
+    parent_id INTEGER REFERENCES catalog_categories(id),
+    
+    source VARCHAR(20) DEFAULT 'bricklink',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Item-Color availability (which colors exist for which parts)
+CREATE TABLE catalog_item_colors (
+    item_type VARCHAR(20) NOT NULL,
+    item_no VARCHAR(64) NOT NULL,
+    color_id INTEGER NOT NULL REFERENCES catalog_colors(id),
+    
+    -- Known quantities in existence (optional, from BrickLink)
+    qty_known INTEGER,
+    
+    source VARCHAR(20) DEFAULT 'bricklink',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    
+    PRIMARY KEY (item_type, item_no, color_id)
+);
+CREATE INDEX idx_item_colors_item ON catalog_item_colors(item_type, item_no);
+
+-- Set Inventories (parts in a set)
+CREATE TABLE catalog_set_items (
+    set_no VARCHAR(64) NOT NULL,
+    
+    item_type VARCHAR(20) NOT NULL,
+    item_no VARCHAR(64) NOT NULL,
+    color_id INTEGER REFERENCES catalog_colors(id),
+    
+    qty INTEGER NOT NULL DEFAULT 1,
+    is_spare BOOLEAN DEFAULT false,
+    is_counterpart BOOLEAN DEFAULT false,
+    
+    source VARCHAR(20) DEFAULT 'rebrickable',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    
+    PRIMARY KEY (set_no, item_type, item_no, color_id, is_spare)
+);
+CREATE INDEX idx_set_items_set ON catalog_set_items(set_no);
+```
+
+### Catalog Cache Strategy
+
+```
+1. USER SEARCHES for "3001" (2x4 brick)
+   ↓
+2. CHECK catalog_items WHERE item_no = '3001'
+   ↓
+3. IF NOT FOUND:
+   a) Query Rebrickable API
+   b) Fallback: Query BrickLink API (rate limited)
+   c) Store result in catalog_items
+   ↓
+4. RETURN cached data
+
+5. BACKGROUND JOB (nightly):
+   - Import BrickLink catalog dumps
+   - Refresh stale items (updated_at > 30 days)
+   - Sync Rebrickable → local (incremental)
+```
+
+### API Rate Limits Management
+
+| Source | Limit | Strategy |
+|--------|-------|----------|
+| BrickLink | 5000/day | Cache first, API fallback, daily budget tracking |
+| Rebrickable | 1 req/sec | Queue requests, bulk fetch where possible |
+| BrickOwl | Varies | Same as BrickLink |
+
+```python
+# Rate limit tracking
+class RateLimitTracker:
+    async def can_request(self, source: str) -> bool
+    async def record_request(self, source: str) -> None
+    async def get_remaining(self, source: str) -> int
+```
+
+### 9. Audit & Events
 
 ```sql
 -- Audit Log (imutável)
@@ -653,7 +948,133 @@ CREATE INDEX idx_webhook_deliveries_pending ON webhook_deliveries(next_retry_at)
     WHERE status = 'PENDING';
 ```
 
-### 9. Jobs & API Keys
+### 10. Email & Notifications
+
+```sql
+-- Email Templates
+CREATE TABLE email_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE, -- NULL = system template
+    
+    template_key VARCHAR(50) NOT NULL, 
+    -- Keys: welcome, password_reset, order_confirmation, order_shipped, 
+    -- order_delivered, low_stock_alert, sync_completed, sync_failed
+    
+    subject VARCHAR(200) NOT NULL,
+    body_html TEXT NOT NULL,
+    body_text TEXT,
+    
+    variables JSONB DEFAULT '[]', -- [{name, description, example}]
+    
+    is_active BOOLEAN DEFAULT true,
+    
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    
+    UNIQUE(tenant_id, template_key)
+);
+
+-- Email Queue
+CREATE TABLE email_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID REFERENCES tenants(id),
+    
+    to_email VARCHAR(320) NOT NULL,
+    to_name VARCHAR(100),
+    
+    subject VARCHAR(200) NOT NULL,
+    body_html TEXT NOT NULL,
+    body_text TEXT,
+    
+    -- Tracking
+    status VARCHAR(20) DEFAULT 'PENDING', -- PENDING/SENT/FAILED
+    attempts INTEGER DEFAULT 0,
+    last_attempt_at TIMESTAMPTZ,
+    sent_at TIMESTAMPTZ,
+    error_message TEXT,
+    
+    -- Reference
+    template_key VARCHAR(50),
+    reference_type VARCHAR(50), -- order/user/sync
+    reference_id UUID,
+    
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_email_queue_pending ON email_queue(status) WHERE status = 'PENDING';
+
+-- In-app Notifications
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE, -- NULL = all users in tenant
+    
+    type VARCHAR(50) NOT NULL,
+    -- Types: order_new, order_status, sync_completed, sync_failed, 
+    -- low_stock, system_alert, feature_announcement
+    
+    title VARCHAR(200) NOT NULL,
+    body TEXT,
+    
+    action_url TEXT,
+    action_label VARCHAR(50),
+    
+    -- Reference
+    reference_type VARCHAR(50),
+    reference_id UUID,
+    
+    -- Status
+    read_at TIMESTAMPTZ,
+    dismissed_at TIMESTAMPTZ,
+    
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_notifications_user ON notifications(tenant_id, user_id, read_at);
+```
+
+### Email System
+
+**Provider:** SMTP configurável (domínio próprio `help@brikonnect.com`)
+
+```python
+# Email service interface
+class EmailService:
+    async def send(
+        self,
+        to: str,
+        subject: str,
+        body_html: str,
+        body_text: str | None = None
+    ) -> bool
+
+    async def send_template(
+        self,
+        to: str,
+        template_key: str,
+        variables: dict,
+        tenant_id: UUID | None = None
+    ) -> bool
+
+    async def queue_email(
+        self,
+        to: str,
+        template_key: str,
+        variables: dict,
+        tenant_id: UUID | None = None
+    ) -> UUID  # Returns queue item ID
+```
+
+**Templates Padrão:**
+| Key | Trigger | Variables |
+|-----|---------|-----------|
+| `welcome` | User created | `{user_name, tenant_name, login_url}` |
+| `password_reset` | Password reset requested | `{user_name, reset_url, expires_in}` |
+| `order_confirmation` | Order imported | `{buyer_name, order_no, items_count, total}` |
+| `order_shipped` | Status → SHIPPED | `{buyer_name, order_no, tracking_number, tracking_url}` |
+| `low_stock_alert` | Stock < threshold | `{item_name, item_no, current_qty, threshold}` |
+| `sync_completed` | Sync job done | `{sync_type, items_updated, items_added, items_removed}` |
+| `sync_failed` | Sync job failed | `{sync_type, error_message}` |
+
+### 11. Jobs & API Keys
 
 ```sql
 -- Job Runs (para tracking de long-running tasks)
@@ -1303,12 +1724,209 @@ if settings.FEATURES["sync"]:
 
 ---
 
+## Infraestrutura (VPS + Docker)
+
+### Arquitetura de Deploy
+
+```
+                    ┌─────────────────────────────────────────────┐
+                    │                    VPS                       │
+                    │                                             │
+    Internet ──────►│  ┌─────────┐      ┌─────────┐              │
+                    │  │ Traefik │──────│   API   │              │
+    *.brikonnect.com│  │ :80/443 │      │  :8000  │              │
+                    │  └─────────┘      └────┬────┘              │
+                    │       │                │                    │
+                    │       │           ┌────┴────┐              │
+                    │       │           │ Worker  │              │
+                    │       │           │  (Arq)  │              │
+                    │       │           └────┬────┘              │
+                    │       │                │                    │
+                    │  ┌────┴────┐      ┌────┴────┐              │
+                    │  │   Web   │      │  Redis  │              │
+                    │  │  :3000  │      │  :6379  │              │
+                    │  └─────────┘      └─────────┘              │
+                    │                                             │
+                    │  ┌─────────┐      ┌─────────┐              │
+                    │  │ Postgres│      │ (Other  │              │
+                    │  │  :5432  │      │ services)│              │
+                    │  └─────────┘      └─────────┘              │
+                    └─────────────────────────────────────────────┘
+```
+
+### Docker Compose (Production-Ready)
+
+```yaml
+# docker-compose.yml
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@brikonnect.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "traefik_certs:/letsencrypt"
+    labels:
+      - "traefik.enable=true"
+      # Dashboard (optional, protect in production)
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.brikonnect.com`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+    networks:
+      - brikonnect
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - brikonnect
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - brikonnect
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=*.brikonnect.com,localhost
+      - CORS_ORIGINS=https://*.brikonnect.com
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      # API routes
+      - "traefik.http.routers.api.rule=Host(`api.brikonnect.com`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+      # Tenant API (wildcard)
+      - "traefik.http.routers.api-tenant.rule=HostRegexp(`{tenant:[a-z0-9-]+}.brikonnect.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api-tenant.entrypoints=websecure"
+      - "traefik.http.routers.api-tenant.tls.certresolver=letsencrypt"
+    networks:
+      - brikonnect
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    command: arq app.jobs.worker.WorkerSettings
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - brikonnect
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    labels:
+      - "traefik.enable=true"
+      # Tenant subdomains serve the web app
+      - "traefik.http.routers.web.rule=HostRegexp(`{tenant:[a-z0-9-]+}.brikonnect.com`) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.web.loadbalancer.server.port=3000"
+    networks:
+      - brikonnect
+
+networks:
+  brikonnect:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  traefik_certs:
+```
+
+### Environment Variables (.env)
+
+```bash
+# Database
+POSTGRES_DB=brikonnect
+POSTGRES_USER=brikonnect
+POSTGRES_PASSWORD=<strong-password>
+
+# Security
+SECRET_KEY=<64-char-random-string>
+ENCRYPTION_KEY=<32-char-key-for-credentials>
+
+# External APIs
+REBRICKABLE_API_KEY=<your-key>
+BRICKLINK_CONSUMER_KEY=<your-key>
+BRICKLINK_CONSUMER_SECRET=<your-secret>
+BRICKLINK_TOKEN=<your-token>
+BRICKLINK_TOKEN_SECRET=<your-token-secret>
+
+# Email (SMTP)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=help@brikonnect.com
+SMTP_PASSWORD=<password>
+SMTP_FROM=help@brikonnect.com
+
+# Optional: Sentry for error tracking
+SENTRY_DSN=<your-sentry-dsn>
+```
+
+---
+
 ## Execução (Comandos)
+
+### Desenvolvimento Local
 
 ```bash
 # Setup inicial
 pnpm install
-docker compose up -d db redis
+docker compose -f docker-compose.dev.yml up -d db redis
 
 # Backend
 cd apps/api
@@ -1316,25 +1934,63 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 alembic upgrade head
 python -m app.seed  # Criar dados iniciais
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Worker (Arq)
+# Worker (Arq) - outro terminal
 arq app.jobs.worker.WorkerSettings
 
-# Frontend
+# Frontend - outro terminal
 cd apps/web
 pnpm dev
 
-# Extension
+# Extension - outro terminal
 cd apps/extension
 pnpm dev
+```
 
-# Tudo com Docker
-docker compose up --build
+### Produção (VPS)
 
-# Testes
-cd apps/api && pytest
-cd apps/web && pnpm test
+```bash
+# Clone e setup
+git clone https://github.com/brickbuild-dev/brikonnect.git
+cd brikonnect
+cp .env.example .env
+# Edit .env with production values
+
+# Build e start
+docker compose up -d --build
+
+# Migrations
+docker compose exec api alembic upgrade head
+
+# Seed inicial (apenas primeira vez)
+docker compose exec api python -m app.seed
+
+# Logs
+docker compose logs -f api worker
+
+# Update
+git pull
+docker compose up -d --build
+docker compose exec api alembic upgrade head
+```
+
+### Testes
+
+```bash
+# Backend
+cd apps/api
+pytest -v
+pytest --cov=app --cov-report=html  # Coverage report
+
+# Frontend
+cd apps/web
+pnpm test
+pnpm test:e2e  # Playwright E2E
+
+# Extension
+cd apps/extension
+pnpm test
 ```
 
 ---
