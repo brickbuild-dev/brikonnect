@@ -18,6 +18,7 @@ class Store(Base):
             "tenant_id",
             unique=True,
             postgresql_where=text("is_primary"),
+            sqlite_where=text("is_primary"),
         ),
     )
 

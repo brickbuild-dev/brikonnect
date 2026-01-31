@@ -62,7 +62,7 @@ async def test_audit_revert_inventory(db_session):
         assert audit_resp.status_code == 200
         logs = audit_resp.json()
         assert logs
-        latest = logs[0]
+        latest = next(log for log in logs if log.get("before_state"))
 
         revert_resp = await ac.post(f"/api/v1/audit/{latest['id']}/revert")
         assert revert_resp.status_code == 200
