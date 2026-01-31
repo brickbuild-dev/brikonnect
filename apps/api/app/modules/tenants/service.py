@@ -28,6 +28,13 @@ async def create_tenant(db: AsyncSession, payload: TenantCreate) -> Tenant:
         name=payload.name,
         plan=payload.plan,
         currency=payload.currency,
+        current_version=payload.current_version,
+        has_brikick_store=payload.has_brikick_store,
+        billing_currency=payload.billing_currency,
+        billing_email=payload.billing_email,
+        billing_status=payload.billing_status,
+        stripe_customer_id=payload.stripe_customer_id,
+        paypal_payer_id=payload.paypal_payer_id,
     )
     db.add(tenant)
     await db.flush()
@@ -41,5 +48,19 @@ async def update_tenant(db: AsyncSession, tenant: Tenant, payload: TenantUpdate)
         tenant.plan = payload.plan
     if payload.currency is not None:
         tenant.currency = payload.currency
+    if payload.current_version is not None:
+        tenant.current_version = payload.current_version
+    if payload.has_brikick_store is not None:
+        tenant.has_brikick_store = payload.has_brikick_store
+    if payload.billing_currency is not None:
+        tenant.billing_currency = payload.billing_currency
+    if payload.billing_email is not None:
+        tenant.billing_email = payload.billing_email
+    if payload.billing_status is not None:
+        tenant.billing_status = payload.billing_status
+    if payload.stripe_customer_id is not None:
+        tenant.stripe_customer_id = payload.stripe_customer_id
+    if payload.paypal_payer_id is not None:
+        tenant.paypal_payer_id = payload.paypal_payer_id
     await db.flush()
     return tenant
