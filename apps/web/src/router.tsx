@@ -3,13 +3,16 @@ import { Navigate, Outlet, createRootRoute, createRoute, createRouter } from '@t
 import { AppLayout } from './components/Layout'
 import { useAuth } from './lib/auth'
 import { DashboardPage } from './routes/DashboardPage'
+import { InventoryDetailPage } from './routes/InventoryDetailPage'
+import { InventoryPage } from './routes/InventoryPage'
+import { LocationsPage } from './routes/LocationsPage'
 import { LoginPage } from './routes/LoginPage'
 
 function RootLayout() {
   return <Outlet />
 }
 
-function ProtectedDashboard() {
+function ProtectedLayout() {
   const { user, loading } = useAuth()
 
   if (loading) {
@@ -22,7 +25,7 @@ function ProtectedDashboard() {
 
   return (
     <AppLayout>
-      <DashboardPage />
+      <Outlet />
     </AppLayout>
   )
 }
@@ -37,13 +40,40 @@ const loginRoute = createRoute({
   component: LoginPage
 })
 
-const dashboardRoute = createRoute({
+const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: ProtectedDashboard
+  component: ProtectedLayout
 })
 
-const routeTree = rootRoute.addChildren([loginRoute, dashboardRoute])
+const dashboardRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/',
+  component: DashboardPage
+})
+
+const inventoryRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/inventory',
+  component: InventoryPage
+})
+
+const inventoryDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/inventory/$itemId',
+  component: InventoryDetailPage
+})
+
+const locationsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/locations',
+  component: LocationsPage
+})
+
+const routeTree = rootRoute.addChildren([
+  loginRoute,
+  appRoute.addChildren([dashboardRoute, inventoryRoute, inventoryDetailRoute, locationsRoute])
+])
 
 export const router = createRouter({ routeTree })
 
