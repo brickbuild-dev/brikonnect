@@ -1,17 +1,23 @@
 import { Navigate, Outlet, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 
 import { AppLayout } from './components/Layout'
+import { Skeleton } from './components/Skeleton'
 import { useAuth } from './lib/auth'
 import { AuditPage } from './routes/AuditPage'
+import { BillingPage } from './routes/BillingPage'
 import { DashboardPage } from './routes/DashboardPage'
 import { InventoryDetailPage } from './routes/InventoryDetailPage'
 import { InventoryPage } from './routes/InventoryPage'
+import { InvoiceDetailPage } from './routes/InvoiceDetailPage'
+import { InvoicesPage } from './routes/InvoicesPage'
 import { LocationsPage } from './routes/LocationsPage'
 import { LoginPage } from './routes/LoginPage'
 import { OrderDetailPage } from './routes/OrderDetailPage'
 import { OrdersPage } from './routes/OrdersPage'
+import { PaymentMethodsPage } from './routes/PaymentMethodsPage'
 import { PickSessionDetailPage } from './routes/PickSessionDetailPage'
 import { PickSessionsPage } from './routes/PickSessionsPage'
+import { ShippingCarriersPage } from './routes/ShippingCarriersPage'
 import { StoresPage } from './routes/StoresPage'
 import { SyncPage } from './routes/SyncPage'
 import { SyncRunDetailPage } from './routes/SyncRunDetailPage'
@@ -25,7 +31,12 @@ function ProtectedLayout() {
   const { user, loading } = useAuth()
 
   if (loading) {
-    return <div className="p-6 text-sm text-slate-500">Loading session...</div>
+    return (
+      <div className="p-6">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="mt-4 h-24 w-full" />
+      </div>
+    )
   }
 
   if (!user) {
@@ -59,6 +70,30 @@ const dashboardRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/',
   component: DashboardPage
+})
+
+const billingRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/billing',
+  component: BillingPage
+})
+
+const invoicesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/billing/invoices',
+  component: InvoicesPage
+})
+
+const invoiceDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/billing/invoices/$invoiceId',
+  component: InvoiceDetailPage
+})
+
+const paymentMethodsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/billing/payment-methods',
+  component: PaymentMethodsPage
 })
 
 const inventoryRoute = createRoute({
@@ -109,6 +144,12 @@ const storesRoute = createRoute({
   component: StoresPage
 })
 
+const shippingCarriersRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/shipping/carriers',
+  component: ShippingCarriersPage
+})
+
 const syncRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/sync',
@@ -137,6 +178,10 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
     dashboardRoute,
+    billingRoute,
+    invoicesRoute,
+    invoiceDetailRoute,
+    paymentMethodsRoute,
     storesRoute,
     inventoryRoute,
     inventoryDetailRoute,
@@ -144,6 +189,7 @@ const routeTree = rootRoute.addChildren([
     syncRunDetailRoute,
     ordersRoute,
     orderDetailRoute,
+    shippingCarriersRoute,
     pickSessionsRoute,
     pickSessionDetailRoute,
     locationsRoute,
