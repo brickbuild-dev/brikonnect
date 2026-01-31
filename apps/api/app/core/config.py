@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    env_file = Path(__file__).resolve().parents[4] / ".env"
+    env_file: ClassVar[Path] = Path(__file__).resolve().parents[4] / ".env"
     model_config = SettingsConfigDict(env_file=env_file, env_file_encoding="utf-8", extra="ignore")
 
     BRIKONNECT_ENV: str = "dev"
