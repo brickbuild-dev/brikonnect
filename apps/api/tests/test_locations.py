@@ -31,12 +31,7 @@ async def test_locations_crud(db_session):
     await seed_owner(db_session, "loc", "owner@loc.example.com", "loc123")
 
     headers = {"host": "loc.brikonnect.com"}
-    async with AsyncClient(
-        app=app,
-        base_url="http://test",
-        headers=headers,
-        follow_redirects=True,
-    ) as ac:
+    async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
             json={"email": "owner@loc.example.com", "password": "loc123"},
@@ -44,7 +39,7 @@ async def test_locations_crud(db_session):
         assert login.status_code == 200
 
         create_resp = await ac.post(
-            "/api/v1/locations",
+            "/api/v1/locations/",
             json={"code": "B-01", "zone": "B", "aisle": "01"},
         )
         assert create_resp.status_code == 201
