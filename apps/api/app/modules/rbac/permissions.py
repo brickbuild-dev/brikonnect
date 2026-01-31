@@ -11,6 +11,8 @@ PERMISSIONS: list[str] = [
     # Catalog
     "catalog:read",
     "catalog:import",
+    # Brickognize
+    "brickognize:use",
     # Orders
     "orders:read",
     "orders:write",
@@ -59,6 +61,8 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "inventory:export",
         # Catalog
         "catalog:read",
+        # Brickognize
+        "brickognize:use",
         # Orders
         "orders:read",
         "orders:write",
@@ -95,5 +99,6 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "orders:read",
         "stores:read",
         "picker:read",
+        "brickognize:use",
     ],
 }
