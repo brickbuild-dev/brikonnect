@@ -2,6 +2,7 @@ import { Navigate, Outlet, createRootRoute, createRoute, createRouter } from '@t
 
 import { AppLayout } from './components/Layout'
 import { useAuth } from './lib/auth'
+import { AuditPage } from './routes/AuditPage'
 import { DashboardPage } from './routes/DashboardPage'
 import { InventoryDetailPage } from './routes/InventoryDetailPage'
 import { InventoryPage } from './routes/InventoryPage'
@@ -11,6 +12,7 @@ import { OrderDetailPage } from './routes/OrderDetailPage'
 import { OrdersPage } from './routes/OrdersPage'
 import { PickSessionDetailPage } from './routes/PickSessionDetailPage'
 import { PickSessionsPage } from './routes/PickSessionsPage'
+import { WebhooksPage } from './routes/WebhooksPage'
 
 function RootLayout() {
   return <Outlet />
@@ -98,6 +100,18 @@ const locationsRoute = createRoute({
   component: LocationsPage
 })
 
+const auditRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/audit',
+  component: AuditPage
+})
+
+const webhooksRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/webhooks',
+  component: WebhooksPage
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
@@ -108,7 +122,9 @@ const routeTree = rootRoute.addChildren([
     orderDetailRoute,
     pickSessionsRoute,
     pickSessionDetailRoute,
-    locationsRoute
+    locationsRoute,
+    auditRoute,
+    webhooksRoute
   ])
 ])
 

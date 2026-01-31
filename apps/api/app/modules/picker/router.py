@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.modules.audit.deps import get_audit_context
+from app.modules.audit.service import create_audit_log, serialize_model
 from app.modules.picker.schemas import (
     PickEventCreate,
     PickEventOut,
@@ -60,12 +62,22 @@ async def list_all(
 async def create(
     payload: PickSessionCreate,
     current_user=Depends(require_permissions(["picker:create_session"])),
+    ctx=Depends(get_audit_context),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         session = await create_session(db, current_user.tenant_id, current_user.id, payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await create_audit_log(
+        db,
+        ctx,
+        action="picker.session_create",
+        entity_type="pick_session",
+        entity_id=session.id,
+        before_state=None,
+        after_state=serialize_model(session, exclude={"orders", "events"}),
+    )
     await db.commit()
     session = await get_session(db, current_user.tenant_id, session.id)
     return _session_out(session)
@@ -127,6 +139,7 @@ async def pick(
     session_id: UUID,
     payload: PickEventCreate,
     current_user=Depends(require_permissions(["picker:pick"])),
+    ctx=Depends(get_audit_context),
     db: AsyncSession = Depends(get_db),
 ):
     session = await get_session(db, current_user.tenant_id, session_id)
@@ -136,6 +149,15 @@ async def pick(
         event = await record_event(db, session, current_user.id, payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await create_audit_log(
+        db,
+        ctx,
+        action="picker.pick_event",
+        entity_type="pick_event",
+        entity_id=event.id,
+        before_state=None,
+        after_state=serialize_model(event),
+    )
     await db.commit()
     return event
 

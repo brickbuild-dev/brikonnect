@@ -37,6 +37,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Link to="/locations" className="block text-slate-500">
               Locations
             </Link>
+            <Link to="/audit" className="block text-slate-500">
+              Audit
+            </Link>
+            <Link to="/webhooks" className="block text-slate-500">
+              Webhooks
+            </Link>
           </nav>
         </aside>
         <main className="flex-1 px-6 py-8">{children}</main>

@@ -9,6 +9,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.modules.audit.deps import get_audit_context
+from app.modules.audit.service import create_audit_log, serialize_model
 from app.modules.inventory.schemas import (
     InventoryBulkRequest,
     InventoryItemCreate,
@@ -48,12 +50,22 @@ async def list_inventory(
 async def create_inventory(
     payload: InventoryItemCreate,
     current_user=Depends(require_permissions(["inventory:write"])),
+    ctx=Depends(get_audit_context),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         item = await create_item(db, current_user.tenant_id, payload)
     except InventoryValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await create_audit_log(
+        db,
+        ctx,
+        action="inventory.create",
+        entity_type="inventory_item",
+        entity_id=item.id,
+        before_state=None,
+        after_state=serialize_model(item, exclude={"locations"}),
+    )
     await db.commit()
     item = await get_item(db, current_user.tenant_id, item.id)
     return item
@@ -76,17 +88,28 @@ async def update_inventory(
     item_id: UUID,
     payload: InventoryItemUpdate,
     current_user=Depends(require_permissions(["inventory:write"])),
+    ctx=Depends(get_audit_context),
     db: AsyncSession = Depends(get_db),
 ):
     item = await get_item(db, current_user.tenant_id, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Inventory item not found")
+    before_state = serialize_model(item, exclude={"locations"})
     try:
         item = await update_item(db, item, current_user.tenant_id, payload)
     except InventoryVersionConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except InventoryValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await create_audit_log(
+        db,
+        ctx,
+        action="inventory.update",
+        entity_type="inventory_item",
+        entity_id=item.id,
+        before_state=before_state,
+        after_state=serialize_model(item, exclude={"locations"}),
+    )
     await db.commit()
     item = await get_item(db, current_user.tenant_id, item.id)
     return item
@@ -96,12 +119,23 @@ async def update_inventory(
 async def delete_inventory(
     item_id: UUID,
     current_user=Depends(require_permissions(["inventory:delete"])),
+    ctx=Depends(get_audit_context),
     db: AsyncSession = Depends(get_db),
 ):
     item = await get_item(db, current_user.tenant_id, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Inventory item not found")
+    before_state = serialize_model(item, exclude={"locations"})
     await delete_item(db, item)
+    await create_audit_log(
+        db,
+        ctx,
+        action="inventory.delete",
+        entity_type="inventory_item",
+        entity_id=item.id,
+        before_state=before_state,
+        after_state=None,
+    )
     await db.commit()
     return Response(status_code=204)
 

@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.modules.audit.deps import get_audit_context
+from app.modules.audit.service import create_audit_log, serialize_model
 from app.modules.orders.schemas import (
     OrderCreate,
     OrderLineOut,
@@ -42,9 +44,19 @@ async def list_all(
 async def create(
     payload: OrderCreate,
     current_user=Depends(require_permissions(["orders:write"])),
+    ctx=Depends(get_audit_context),
     db: AsyncSession = Depends(get_db),
 ):
     order = await create_order(db, current_user.tenant_id, payload)
+    await create_audit_log(
+        db,
+        ctx,
+        action="order.create",
+        entity_type="order",
+        entity_id=order.id,
+        before_state=None,
+        after_state=serialize_model(order, exclude={"lines", "status_events"}),
+    )
     await db.commit()
     order = await get_order(db, current_user.tenant_id, order.id)
     return order
@@ -67,12 +79,23 @@ async def update(
     order_id: UUID,
     payload: OrderUpdate,
     current_user=Depends(require_permissions(["orders:write"])),
+    ctx=Depends(get_audit_context),
     db: AsyncSession = Depends(get_db),
 ):
     order = await get_order(db, current_user.tenant_id, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    before_state = serialize_model(order, exclude={"lines", "status_events"})
     order = await update_order(db, order, payload)
+    await create_audit_log(
+        db,
+        ctx,
+        action="order.update",
+        entity_type="order",
+        entity_id=order.id,
+        before_state=before_state,
+        after_state=serialize_model(order, exclude={"lines", "status_events"}),
+    )
     await db.commit()
     order = await get_order(db, current_user.tenant_id, order_id)
     return order
@@ -82,12 +105,23 @@ async def update(
 async def delete(
     order_id: UUID,
     current_user=Depends(require_permissions(["orders:cancel"])),
+    ctx=Depends(get_audit_context),
     db: AsyncSession = Depends(get_db),
 ):
     order = await get_order(db, current_user.tenant_id, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    before_state = serialize_model(order, exclude={"lines", "status_events"})
     await delete_order(db, order)
+    await create_audit_log(
+        db,
+        ctx,
+        action="order.delete",
+        entity_type="order",
+        entity_id=order.id,
+        before_state=before_state,
+        after_state=None,
+    )
     await db.commit()
     return Response(status_code=204)
 
@@ -97,15 +131,26 @@ async def update_status(
     order_id: UUID,
     payload: OrderStatusUpdate,
     current_user=Depends(require_permissions(["orders:status_update"])),
+    ctx=Depends(get_audit_context),
     db: AsyncSession = Depends(get_db),
 ):
     order = await get_order(db, current_user.tenant_id, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    before_state = serialize_model(order, exclude={"lines", "status_events"})
     try:
         order = await change_status(db, order, payload.status, current_user.id, payload.notes)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await create_audit_log(
+        db,
+        ctx,
+        action="order.status_update",
+        entity_type="order",
+        entity_id=order.id,
+        before_state=before_state,
+        after_state=serialize_model(order, exclude={"lines", "status_events"}),
+    )
     await db.commit()
     order = await get_order(db, current_user.tenant_id, order_id)
     return order
