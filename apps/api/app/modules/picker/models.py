@@ -16,7 +16,6 @@ class PickSession(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -38,7 +37,10 @@ class PickSession(Base):
     started_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
     orders = relationship("PickSessionOrder", back_populates="session", cascade="all, delete-orphan")
     events = relationship("PickEvent", back_populates="session", cascade="all, delete-orphan")
@@ -70,7 +72,6 @@ class PickEvent(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     pick_session_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -92,6 +93,9 @@ class PickEvent(Base):
     qty: Mapped[int] = mapped_column(Integer, nullable=False)
     location_code: Mapped[str | None] = mapped_column(String(30))
     notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
     session = relationship("PickSession", back_populates="events")

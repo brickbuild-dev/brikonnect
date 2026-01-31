@@ -25,7 +25,6 @@ class Store(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -42,10 +41,13 @@ class Store(Base):
         nullable=False,
         server_default=text("'{}'"),
     )
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now(),
     )
 
@@ -60,7 +62,6 @@ class StoreCredential(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     store_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -70,10 +71,13 @@ class StoreCredential(Base):
     )
     encrypted_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     encryption_key_id: Mapped[str] = mapped_column(String(50), nullable=False)
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now(),
     )
 
@@ -98,7 +102,7 @@ class StoreSyncState(Base):
     )
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now(),
     )
 

@@ -17,7 +17,6 @@ class Location(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -32,6 +31,9 @@ class Location(Base):
     bin: Mapped[str | None] = mapped_column(String(10))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
 
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
     items = relationship("InventoryItemLocation", back_populates="location", cascade="all, delete-orphan")

@@ -30,7 +30,6 @@ class TenantVersionHistory(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -39,14 +38,20 @@ class TenantVersionHistory(Base):
         index=True,
     )
     version: Mapped[str] = mapped_column(String(10), nullable=False)
-    started_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    started_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
     ended_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     changed_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
     )
     change_reason: Mapped[str | None] = mapped_column(String(100))
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
 
 class Invoice(Base):
@@ -59,7 +64,6 @@ class Invoice(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -102,10 +106,13 @@ class Invoice(Base):
 
     store_breakdown: Mapped[dict | None] = mapped_column(JSONBCompatible)
 
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now(),
     )
 
@@ -117,7 +124,6 @@ class Payment(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -147,7 +153,10 @@ class Payment(Base):
 
     error_message: Mapped[str | None] = mapped_column(Text)
     processed_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
 
 class PaymentMethod(Base):
@@ -161,7 +170,6 @@ class PaymentMethod(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -185,7 +193,10 @@ class PaymentMethod(Base):
 
     paypal_email: Mapped[str | None] = mapped_column(String(320))
 
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
 
 class BillingAccumulated(Base):
@@ -198,4 +209,7 @@ class BillingAccumulated(Base):
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, server_default=text("0"))
     currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default=text("'EUR'"))
-    updated_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    updated_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )

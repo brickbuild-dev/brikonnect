@@ -17,7 +17,6 @@ class User(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -30,10 +29,13 @@ class User(Base):
     display_name: Mapped[str | None] = mapped_column(String(100))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now(),
     )
 

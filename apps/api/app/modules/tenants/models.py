@@ -17,7 +17,6 @@ class Tenant(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -52,10 +51,13 @@ class Tenant(Base):
     stripe_customer_id: Mapped[str | None] = mapped_column(String(100))
     paypal_payer_id: Mapped[str | None] = mapped_column(String(100))
 
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now(),
     )
 

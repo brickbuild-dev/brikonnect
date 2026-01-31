@@ -28,7 +28,6 @@ class InventoryItem(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -56,10 +55,13 @@ class InventoryItem(Base):
 
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
 
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now(),
     )
 
@@ -102,7 +104,6 @@ class InventoryExternalId(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

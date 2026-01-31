@@ -17,7 +17,6 @@ class Session(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -35,7 +34,10 @@ class Session(Base):
     user_agent: Mapped[str | None] = mapped_column(String, nullable=True)
     ip_address: Mapped[str | None] = mapped_column(INETCompatible, nullable=True)
     expires_at: Mapped[object] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
 
 class RefreshToken(Base):
@@ -45,7 +47,6 @@ class RefreshToken(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -63,4 +64,7 @@ class RefreshToken(Base):
     family_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     revoked_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[object] = mapped_column(DateTime(timezone=True), nullable=False)
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
