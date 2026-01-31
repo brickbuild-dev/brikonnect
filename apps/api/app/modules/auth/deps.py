@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timezone
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,7 +61,10 @@ async def get_current_user(
         if not session_token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
         session = await auth_service.get_session_by_token(db, session_token)
-        if not session or session.expires_at <= utcnow():
+        expires_at = session.expires_at if session else None
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if not session or (expires_at and expires_at <= utcnow()):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired")
         user_id = session.user_id
         tenant_id = session.tenant_id
