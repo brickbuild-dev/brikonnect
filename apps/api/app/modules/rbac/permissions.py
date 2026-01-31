@@ -16,6 +16,9 @@ PERMISSIONS: list[str] = [
     # Shipping
     "shipping:read",
     "shipping:manage",
+    # Email/Notifications
+    "email:manage",
+    "notifications:read",
     # Orders
     "orders:read",
     "orders:write",
@@ -68,6 +71,8 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "brickognize:use",
         # Shipping
         "shipping:read",
+        # Notifications
+        "notifications:read",
         # Orders
         "orders:read",
         "orders:write",
@@ -106,5 +111,6 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "picker:read",
         "brickognize:use",
         "shipping:read",
+        "notifications:read",
     ],
 }
