@@ -21,7 +21,10 @@ def get_tenant_slug_from_request(request: Request) -> str | None:
     parts = host.split(".")
     if len(parts) < 2:
         return None
-    return parts[0]
+    subdomain = parts[0]
+    if subdomain in {"api", "www", "cdn"}:
+        return None
+    return subdomain
 
 
 async def resolve_tenant(
@@ -75,9 +78,13 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User inactive")
 
     if settings.ENFORCE_TENANT_HOST:
-        tenant = await resolve_tenant(request, db)
-        if str(tenant.id) != str(tenant_id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch")
+        slug = get_tenant_slug_from_request(request)
+        if slug:
+            tenant = await tenant_service.get_tenant_by_slug(db, slug)
+            if not tenant or str(tenant.id) != str(tenant_id):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch"
+                )
 
     return user
 

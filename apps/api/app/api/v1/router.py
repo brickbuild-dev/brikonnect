@@ -7,6 +7,7 @@ from app.modules.inventory import router as inventory_router
 from app.modules.jobs import router as jobs_router
 from app.modules.locations import router as locations_router
 from app.modules.orders import router as orders_router
+from app.modules.picker import router as picker_router
 from app.modules.rbac import router as rbac_router
 from app.modules.tenants import router as tenants_router
 from app.modules.users import router as users_router
@@ -20,4 +21,5 @@ api_router.include_router(inventory_router.router, prefix="/inventory", tags=["i
 api_router.include_router(locations_router.router, prefix="/locations", tags=["locations"])
 api_router.include_router(jobs_router.router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(orders_router.router, prefix="/orders", tags=["orders"])
+api_router.include_router(picker_router.router, prefix="/picker", tags=["picker"])
 

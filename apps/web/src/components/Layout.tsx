@@ -31,6 +31,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Link to="/orders" className="block text-slate-500">
               Orders
             </Link>
+            <Link to="/picker" className="block text-slate-500">
+              Picking
+            </Link>
             <Link to="/locations" className="block text-slate-500">
               Locations
             </Link>

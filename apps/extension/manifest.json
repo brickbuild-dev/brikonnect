@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Brikonnect",
+  "version": "0.0.0",
+  "description": "Brikonnect picking companion",
+  "permissions": ["storage", "sidePanel", "notifications", "alarms"],
+  "host_permissions": ["https://api.brikonnect.com/*", "http://localhost:8000/*"],
+  "action": {
+    "default_title": "Brikonnect",
+    "default_popup": "popup.html"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  }
+}

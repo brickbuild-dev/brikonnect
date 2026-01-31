@@ -9,6 +9,8 @@ import { LocationsPage } from './routes/LocationsPage'
 import { LoginPage } from './routes/LoginPage'
 import { OrderDetailPage } from './routes/OrderDetailPage'
 import { OrdersPage } from './routes/OrdersPage'
+import { PickSessionDetailPage } from './routes/PickSessionDetailPage'
+import { PickSessionsPage } from './routes/PickSessionsPage'
 
 function RootLayout() {
   return <Outlet />
@@ -78,6 +80,18 @@ const orderDetailRoute = createRoute({
   component: OrderDetailPage
 })
 
+const pickSessionsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/picker',
+  component: PickSessionsPage
+})
+
+const pickSessionDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/picker/$sessionId',
+  component: PickSessionDetailPage
+})
+
 const locationsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/locations',
@@ -92,6 +106,8 @@ const routeTree = rootRoute.addChildren([
     inventoryDetailRoute,
     ordersRoute,
     orderDetailRoute,
+    pickSessionsRoute,
+    pickSessionDetailRoute,
     locationsRoute
   ])
 ])
