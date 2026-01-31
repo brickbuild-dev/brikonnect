@@ -1,8 +1,8 @@
+import bcrypt
 import pytest
 from httpx import AsyncClient
 
 from app.core.config import settings
-from app.core.security import hash_password
 from app.main import app
 from app.modules.rbac import service as rbac_service
 from app.modules.tenants.schemas import TenantCreate
@@ -18,26 +18,33 @@ async def test_login_and_refresh(db_session):
     roles = await rbac_service.list_roles(db_session, tenant.id)
     owner_role = next(role for role in roles if role.name == "owner")
 
+    password_hash = bcrypt.hashpw(b"admin123", bcrypt.gensalt()).decode()
     user = await create_user(
         db_session,
         tenant.id,
-        UserCreate(email="admin@demo.local", password="admin123"),
-        hash_password("admin123"),
+        UserCreate(email="admin@demo.example.com", password="admin123"),
+        password_hash,
     )
     await set_user_roles(db_session, tenant.id, user.id, [owner_role.id])
     await db_session.commit()
 
     headers = {"host": "demo.brikonnect.com"}
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
-        login = await ac.post("/api/v1/auth/login", json={"email": "admin@demo.local", "password": "admin123"})
+        login = await ac.post(
+            "/api/v1/auth/login",
+            json={"email": "admin@demo.example.com", "password": "admin123"},
+        )
         assert login.status_code == 200
         assert settings.SESSION_COOKIE_NAME in login.cookies
 
         me = await ac.get("/api/v1/auth/me")
         assert me.status_code == 200
-        assert me.json()["user"]["email"] == "admin@demo.local"
+        assert me.json()["user"]["email"] == "admin@demo.example.com"
 
-        token_resp = await ac.post("/api/v1/auth/token", json={"email": "admin@demo.local", "password": "admin123"})
+        token_resp = await ac.post(
+            "/api/v1/auth/token",
+            json={"email": "admin@demo.example.com", "password": "admin123"},
+        )
         assert token_resp.status_code == 200
         payload = token_resp.json()
         assert payload["access_token"]
