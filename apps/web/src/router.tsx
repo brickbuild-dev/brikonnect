@@ -7,6 +7,8 @@ import { InventoryDetailPage } from './routes/InventoryDetailPage'
 import { InventoryPage } from './routes/InventoryPage'
 import { LocationsPage } from './routes/LocationsPage'
 import { LoginPage } from './routes/LoginPage'
+import { OrderDetailPage } from './routes/OrderDetailPage'
+import { OrdersPage } from './routes/OrdersPage'
 
 function RootLayout() {
   return <Outlet />
@@ -64,6 +66,18 @@ const inventoryDetailRoute = createRoute({
   component: InventoryDetailPage
 })
 
+const ordersRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/orders',
+  component: OrdersPage
+})
+
+const orderDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/orders/$orderId',
+  component: OrderDetailPage
+})
+
 const locationsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/locations',
@@ -72,7 +86,14 @@ const locationsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([dashboardRoute, inventoryRoute, inventoryDetailRoute, locationsRoute])
+  appRoute.addChildren([
+    dashboardRoute,
+    inventoryRoute,
+    inventoryDetailRoute,
+    ordersRoute,
+    orderDetailRoute,
+    locationsRoute
+  ])
 ])
 
 export const router = createRouter({ routeTree })
