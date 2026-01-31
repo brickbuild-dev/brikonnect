@@ -31,7 +31,12 @@ async def test_locations_crud(db_session):
     await seed_owner(db_session, "loc", "owner@loc.example.com", "loc123")
 
     headers = {"host": "loc.brikonnect.com"}
-    async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=headers,
+        follow_redirects=True,
+    ) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
             json={"email": "owner@loc.example.com", "password": "loc123"},

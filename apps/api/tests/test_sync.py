@@ -31,7 +31,12 @@ async def test_sync_preview_and_apply(db_session):
     await seed_owner(db_session, "sync", "owner@sync.example.com", "sync123")
 
     headers = {"host": "sync.brikonnect.com"}
-    async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=headers,
+        follow_redirects=True,
+    ) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
             json={"email": "owner@sync.example.com", "password": "sync123"},

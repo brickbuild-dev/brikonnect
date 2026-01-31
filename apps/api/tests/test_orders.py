@@ -31,7 +31,12 @@ async def test_orders_status_flow(db_session):
     await seed_owner(db_session, "orders", "owner@orders.example.com", "orders123")
 
     headers = {"host": "orders.brikonnect.com"}
-    async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=headers,
+        follow_redirects=True,
+    ) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
             json={"email": "owner@orders.example.com", "password": "orders123"},

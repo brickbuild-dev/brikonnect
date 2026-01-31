@@ -31,7 +31,12 @@ async def test_webhooks_crud(db_session):
     await seed_owner(db_session, "hooks", "owner@hooks.example.com", "hooks123")
 
     headers = {"host": "hooks.brikonnect.com"}
-    async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=headers,
+        follow_redirects=True,
+    ) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
             json={"email": "owner@hooks.example.com", "password": "hooks123"},

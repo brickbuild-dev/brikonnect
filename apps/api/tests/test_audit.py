@@ -31,7 +31,12 @@ async def test_audit_revert_inventory(db_session):
     await seed_owner(db_session, "audit", "owner@audit.example.com", "audit123")
 
     headers = {"host": "audit.brikonnect.com"}
-    async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=headers,
+        follow_redirects=True,
+    ) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
             json={"email": "owner@audit.example.com", "password": "audit123"},
