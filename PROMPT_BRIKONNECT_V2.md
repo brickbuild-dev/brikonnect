@@ -824,24 +824,238 @@ CREATE TABLE catalog_set_items (
 CREATE INDEX idx_set_items_set ON catalog_set_items(set_no);
 ```
 
+### Multi-Reference Search System
+
+Cada plataforma (BrickLink, BrickOwl, Brikick) tem os seus próprios IDs para a mesma peça.
+O sistema suporta pesquisa por **qualquer referência** e mapeia automaticamente.
+
+```sql
+-- Mapeamento de IDs entre plataformas
+CREATE TABLE catalog_id_mappings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    -- Canonical reference (internal)
+    item_type VARCHAR(20) NOT NULL,
+    canonical_item_no VARCHAR(64) NOT NULL, -- Usamos BrickLink como base
+    
+    -- Platform-specific IDs
+    bricklink_id VARCHAR(64),
+    brickowl_id VARCHAR(64),
+    brikick_id VARCHAR(64), -- Futuro
+    rebrickable_id VARCHAR(64),
+    lego_element_ids TEXT[], -- LEGO element IDs (podem ser múltiplos)
+    
+    -- Confidence
+    mapping_source VARCHAR(20), -- manual/rebrickable/auto
+    confidence NUMERIC(3,2) DEFAULT 1.0, -- 0.0-1.0
+    
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    
+    UNIQUE(item_type, canonical_item_no)
+);
+
+-- Índices para pesquisa por qualquer ID
+CREATE INDEX idx_mapping_bricklink ON catalog_id_mappings(bricklink_id);
+CREATE INDEX idx_mapping_brickowl ON catalog_id_mappings(brickowl_id);
+CREATE INDEX idx_mapping_brikick ON catalog_id_mappings(brikick_id);
+CREATE INDEX idx_mapping_rebrickable ON catalog_id_mappings(rebrickable_id);
+```
+
+### Search Flow (Multi-Reference)
+
+```
+USER SEARCHES: "973pb0001" (pode ser BrickLink, BrickOwl, ou qualquer)
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 1. SEARCH catalog_id_mappings                          │
+│    WHERE bricklink_id = '973pb0001'                    │
+│       OR brickowl_id = '973pb0001'                     │
+│       OR brikick_id = '973pb0001'                      │
+│       OR canonical_item_no = '973pb0001'               │
+│       OR rebrickable_id = '973pb0001'                  │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+         FOUND? → Return canonical + all platform IDs
+                    ↓
+         NOT FOUND? → Query external APIs
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 2. Query Rebrickable API (has good cross-references)   │
+│ 3. Query BrickLink/BrickOwl if needed                  │
+│ 4. Cache result in catalog_id_mappings                 │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+         Return unified result with all platform IDs
+```
+
+### Search API Response
+
+```json
+{
+  "item_type": "PART",
+  "canonical_id": "973pb0001",
+  "name": "Torso with Pattern",
+  "image_url": "https://...",
+  "platform_ids": {
+    "bricklink": "973pb0001",
+    "brickowl": "973pb0001c01",
+    "brikick": "PART-973-0001",
+    "rebrickable": "973pr0001",
+    "lego_elements": ["6138623", "4275815"]
+  },
+  "colors_available": [...]
+}
+```
+
+---
+
+### Brickognize Integration (Visual Part Recognition)
+
+Integração com **www.brickognize.com** para identificação visual de peças LEGO.
+
+**Casos de uso:**
+1. **Adicionar ao inventário** — Utilizador não sabe o ID, tira foto, sistema identifica
+2. **Pesquisa** — Pesquisa por imagem em vez de texto/ID
+
+```sql
+-- Brickognize API cache (evitar requests repetidos para mesma imagem)
+CREATE TABLE brickognize_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    image_hash VARCHAR(64) NOT NULL UNIQUE, -- SHA256 da imagem
+    
+    -- Results
+    predictions JSONB NOT NULL, -- Array of {item_no, confidence, name}
+    top_prediction_item_no VARCHAR(64),
+    top_prediction_confidence NUMERIC(4,3),
+    
+    -- Mapping to our catalog
+    matched_catalog_item_id UUID REFERENCES catalog_items(id),
+    
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_brickognize_hash ON brickognize_cache(image_hash);
+```
+
+### Brickognize Flow
+
+```
+USER UPLOADS IMAGE (from camera/file)
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 1. Calculate image hash (SHA256)                       │
+│ 2. Check brickognize_cache for existing result         │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+         CACHED? → Return cached predictions
+                    ↓
+         NOT CACHED? 
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 3. Call Brickognize API                                │
+│    POST https://api.brickognize.com/predict/           │
+│    Body: multipart/form-data with image                │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 4. Process predictions                                  │
+│    - Map item_no to our catalog_id_mappings            │
+│    - Cache results                                      │
+│    - Return top predictions with platform IDs          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Brickognize API Endpoints
+
+```yaml
+# Identify part from image
+POST   /inventory/identify
+       Content-Type: multipart/form-data
+       Body: { image: <file> }
+       Response: {
+         predictions: [
+           {
+             item_no: "3001",
+             name: "Brick 2 x 4",
+             confidence: 0.95,
+             image_url: "...",
+             platform_ids: {...}
+           },
+           ...
+         ],
+         top_match: {...}
+       }
+
+# Search by image
+POST   /search/image
+       Content-Type: multipart/form-data
+       Body: { image: <file> }
+       Response: Same as above + inventory matches if in stock
+```
+
+### UI Integration Points
+
+**1. Inventory → Add Item**
+```
+┌────────────────────────────────────────┐
+│  Add Inventory Item                    │
+├────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────────────┐   │
+│  │  📷      │  │ Part ID/Name     │   │
+│  │  Take    │  │ [____________]   │   │
+│  │  Photo   │  │                  │   │
+│  └──────────┘  │ Or search...     │   │
+│                └──────────────────┘   │
+│                                        │
+│  [Identify from Photo]                 │
+│                                        │
+│  Suggestions:                          │
+│  ┌────────────────────────────────┐   │
+│  │ 🧱 3001 - Brick 2x4 (95%)     │   │
+│  │ 🧱 3002 - Brick 2x3 (78%)     │   │
+│  └────────────────────────────────┘   │
+└────────────────────────────────────────┘
+```
+
+**2. Global Search**
+```
+┌────────────────────────────────────────┐
+│  🔍 Search: [___________] [📷]        │
+│                                        │
+│  Search by:                            │
+│  • Part ID (any platform)              │
+│  • Name                                │
+│  • Image (Brickognize)                 │
+└────────────────────────────────────────┘
+```
+
+**3. Chrome Extension - Quick Add**
+- Camera button no side panel
+- Uses device camera directly
+- One-tap identify → add to inventory
+
 ### Catalog Cache Strategy
 
 ```
 1. USER SEARCHES for "3001" (2x4 brick)
    ↓
-2. CHECK catalog_items WHERE item_no = '3001'
+2. CHECK catalog_id_mappings for any platform match
    ↓
-3. IF NOT FOUND:
-   a) Query Rebrickable API
+3. CHECK catalog_items for full details
+   ↓
+4. IF NOT FOUND:
+   a) Query Rebrickable API (best for cross-refs)
    b) Fallback: Query BrickLink API (rate limited)
-   c) Store result in catalog_items
+   c) Store in catalog_items + catalog_id_mappings
    ↓
-4. RETURN cached data
+5. RETURN cached data with all platform IDs
 
-5. BACKGROUND JOB (nightly):
+6. BACKGROUND JOB (nightly):
    - Import BrickLink catalog dumps
+   - Import Rebrickable cross-reference tables
    - Refresh stale items (updated_at > 30 days)
-   - Sync Rebrickable → local (incremental)
+   - Build missing id_mappings from Rebrickable
 ```
 
 ### API Rate Limits Management
@@ -1630,28 +1844,138 @@ interface ExtensionStorage {
 
 ---
 
-## Billing Gating
+## Billing System
 
-### Planos
+### Modelo de Preços: % do GMV (Gross Merchandise Value)
 
-| Feature | Free | Starter | Pro |
-|---------|------|---------|-----|
-| Stores | 1 | 3 | Unlimited |
-| Users | 1 | 3 | 10 |
-| Sync | ❌ | ✓ | ✓ |
-| API Keys | ❌ | 1 | 5 |
-| Webhooks | ❌ | 3 | 10 |
-| Support | Community | Email | Priority |
+A cobrança é baseada numa **percentagem do valor líquido total de encomendas mensais**:
+- **Valor líquido** = subtotal dos produtos (SEM portes de envio)
+- Calculado mensalmente por tenant
+- Soma de todas as stores/canais associados
 
-### Implementation
+```sql
+-- Billing configuration
+CREATE TABLE billing_plans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    name VARCHAR(50) NOT NULL, -- free/starter/growth/pro
+    
+    -- GMV-based pricing
+    gmv_percentage NUMERIC(5,4) NOT NULL, -- ex: 0.0250 = 2.5%
+    min_monthly_fee NUMERIC(10,2) DEFAULT 0, -- Mínimo mensal (floor)
+    max_monthly_fee NUMERIC(10,2), -- Máximo mensal (cap, NULL = sem limite)
+    
+    -- Feature limits
+    max_stores INTEGER,
+    max_users INTEGER,
+    sync_enabled BOOLEAN DEFAULT false,
+    api_keys_limit INTEGER DEFAULT 0,
+    webhooks_limit INTEGER DEFAULT 0,
+    
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Tenant billing
+ALTER TABLE tenants ADD COLUMN billing_plan_id UUID REFERENCES billing_plans(id);
+ALTER TABLE tenants ADD COLUMN billing_email VARCHAR(320);
+ALTER TABLE tenants ADD COLUMN billing_started_at TIMESTAMPTZ;
+
+-- Monthly GMV tracking
+CREATE TABLE billing_gmv_monthly (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    
+    year_month VARCHAR(7) NOT NULL, -- '2026-01'
+    
+    -- GMV breakdown
+    orders_count INTEGER DEFAULT 0,
+    gross_total NUMERIC(12,2) DEFAULT 0, -- Total com tudo
+    shipping_total NUMERIC(12,2) DEFAULT 0, -- Total de portes
+    net_gmv NUMERIC(12,2) DEFAULT 0, -- gross - shipping (base para billing)
+    
+    -- Calculated fee
+    fee_percentage NUMERIC(5,4),
+    calculated_fee NUMERIC(10,2),
+    final_fee NUMERIC(10,2), -- After min/max caps
+    
+    -- Status
+    status VARCHAR(20) DEFAULT 'PENDING', -- PENDING/INVOICED/PAID
+    invoiced_at TIMESTAMPTZ,
+    paid_at TIMESTAMPTZ,
+    
+    -- Breakdown by store (for transparency)
+    store_breakdown JSONB, -- [{store_id, store_name, orders, net_gmv}]
+    
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    
+    UNIQUE(tenant_id, year_month)
+);
+CREATE INDEX idx_billing_gmv_tenant ON billing_gmv_monthly(tenant_id, year_month);
+
+-- Order GMV tracking (para calcular monthly)
+-- Adicionado à tabela orders:
+ALTER TABLE orders ADD COLUMN shipping_cost_for_billing NUMERIC(12,2);
+-- net_for_billing = grand_total - shipping_cost_for_billing
+```
+
+### Planos Exemplo
+
+| Plan | GMV % | Min/mês | Max/mês | Stores | Users | Sync | API Keys |
+|------|-------|---------|---------|--------|-------|------|----------|
+| Free | 0% | €0 | €0 | 1 | 1 | ❌ | 0 |
+| Starter | 2.5% | €10 | €50 | 2 | 3 | ✓ | 1 |
+| Growth | 2.0% | €25 | €150 | 5 | 5 | ✓ | 3 |
+| Pro | 1.5% | €50 | €500 | ∞ | 10 | ✓ | 10 |
+
+### GMV Calculation Job (Monthly)
+
 ```python
-# Em cada endpoint protegido
-@router.post("/sync/preview")
-async def create_sync_preview(
-    tenant: Tenant = Depends(get_current_tenant),
-    _: None = Depends(require_plan("starter"))  # Gating
-):
-    ...
+# Runs on 1st of each month for previous month
+async def calculate_monthly_gmv(tenant_id: UUID, year_month: str):
+    """
+    1. Sum all orders.grand_total WHERE ordered_at in month
+    2. Subtract shipping costs
+    3. Apply plan percentage
+    4. Apply min/max caps
+    5. Create billing_gmv_monthly record
+    """
+    orders = await get_orders_for_month(tenant_id, year_month)
+    
+    gross_total = sum(o.grand_total for o in orders)
+    shipping_total = sum(o.shipping_cost or 0 for o in orders)
+    net_gmv = gross_total - shipping_total
+    
+    plan = await get_tenant_plan(tenant_id)
+    calculated_fee = net_gmv * plan.gmv_percentage
+    
+    # Apply caps
+    final_fee = max(calculated_fee, plan.min_monthly_fee or 0)
+    if plan.max_monthly_fee:
+        final_fee = min(final_fee, plan.max_monthly_fee)
+    
+    return BillingGMVMonthly(
+        tenant_id=tenant_id,
+        year_month=year_month,
+        orders_count=len(orders),
+        gross_total=gross_total,
+        shipping_total=shipping_total,
+        net_gmv=net_gmv,
+        fee_percentage=plan.gmv_percentage,
+        calculated_fee=calculated_fee,
+        final_fee=final_fee
+    )
+```
+
+### Billing API Endpoints
+
+```yaml
+GET    /billing/current          # Current month GMV progress
+GET    /billing/history          # Past months
+GET    /billing/history/{month}  # Specific month detail
+GET    /billing/plan             # Current plan details
+POST   /billing/plan/upgrade     # Request plan change
 ```
 
 ---
