@@ -1,5 +1,46 @@
 # Brikonnect Platform — Prompt de Implementação v2
 
+> **Para o Agente Codex:** Este documento contém a especificação completa para implementar a plataforma Brikonnect. Segue os milestones na ordem (M1→M6) e usa as decisões técnicas já definidas. Não precisa de tomar decisões arquiteturais — tudo está especificado.
+
+---
+
+## TL;DR — Resumo Executivo
+
+### O que é
+Plataforma SaaS para vendedores LEGO: inventory + orders + picking + sync + shipping.
+
+### Stack
+- **Backend:** FastAPI + SQLAlchemy 2.0 + PostgreSQL + Redis + Arq (jobs)
+- **Frontend:** React 18 + TypeScript + Vite + TanStack Query + Tailwind + shadcn/ui
+- **Extension:** Chrome MV3 + React (Side Panel)
+- **Monorepo:** Turborepo + pnpm
+
+### Domínios
+- `{tenant}.brikonnect.com` — App por cliente
+- `api.brikonnect.com` — API
+
+### Billing
+- **Lite (1%):** Picking + Sync apenas
+- **Full (2.5%):** Tudo (2% se tiver loja Brikick)
+- Fatura dia 1, vence dia 5, mínimo €10/EU ou $5/US
+
+### Funcionalidades Chave
+1. Multi-reference search (BrickLink + BrickOwl + Brikick IDs)
+2. Brickognize (reconhecimento visual de peças)
+3. 15 shipping carriers
+4. Catalog cache (Rebrickable + BrickLink dumps)
+5. Dark/Light mode
+
+### Milestones
+1. **M1:** Auth + Tenants + Users + RBAC
+2. **M2:** Inventory + Locations
+3. **M3:** Orders + Status
+4. **M4:** Picker + Extension
+5. **M5:** Audit + Revert
+6. **M6:** Sync Engine
+
+---
+
 ## Visão do Produto
 
 **Brikonnect** é uma plataforma SaaS para vendedores LEGO que unifica:
