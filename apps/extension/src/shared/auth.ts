@@ -46,3 +46,34 @@ export async function login(email: string, password: string): Promise<AuthState>
 export async function logout() {
   await setAuth(null)
 }
+
+export async function refreshAuth(): Promise<AuthState | null> {
+  const current = await getAuth()
+  if (!current) {
+    return null
+  }
+  if (Date.now() < current.expiresAt - 60_000) {
+    return current
+  }
+  try {
+    const data = await apiFetch<{ access_token: string; refresh_token: string; expires_in: number }>(
+      '/auth/token/refresh',
+      {
+        method: 'POST',
+        body: JSON.stringify({ refresh_token: current.refreshToken })
+      }
+    )
+    const updated: AuthState = {
+      ...current,
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: Date.now() + data.expires_in * 1000
+    }
+    await setAuth(updated)
+    return updated
+  } catch (error) {
+    console.error('Token refresh failed', error)
+    await setAuth(null)
+    return null
+  }
+}
