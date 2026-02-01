@@ -28,18 +28,18 @@ async def seed_owner(db_session, slug: str, email: str, password: str):
 
 @pytest.mark.asyncio
 async def test_locations_crud(db_session):
-    await seed_owner(db_session, "loc", "owner@loc.local", "loc123")
+    await seed_owner(db_session, "loc", "owner@loc.example.com", "loc123")
 
     headers = {"host": "loc.brikonnect.com"}
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
-            json={"email": "owner@loc.local", "password": "loc123"},
+            json={"email": "owner@loc.example.com", "password": "loc123"},
         )
         assert login.status_code == 200
 
         create_resp = await ac.post(
-            "/api/v1/locations",
+            "/api/v1/locations/",
             json={"code": "B-01", "zone": "B", "aisle": "01"},
         )
         assert create_resp.status_code == 201

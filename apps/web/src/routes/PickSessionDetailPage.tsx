@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import { apiFetch } from '../lib/api'
+import { Skeleton } from '../components/Skeleton'
 
 type PickSession = {
   id: string
@@ -68,7 +69,12 @@ export function PickSessionDetailPage() {
   }
 
   if (sessionQuery.isLoading || !sessionQuery.data) {
-    return <div className="text-sm text-slate-500">Loading session...</div>
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    )
   }
 
   const session = sessionQuery.data
@@ -94,7 +100,7 @@ export function PickSessionDetailPage() {
         {message ? <span className="text-xs text-emerald-600">{message}</span> : null}
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-lg border bg-white">
+      <div className="mt-6 overflow-x-auto rounded-lg border bg-white">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>

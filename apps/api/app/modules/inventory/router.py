@@ -71,6 +71,34 @@ async def create_inventory(
     return item
 
 
+@router.get("/export")
+async def export_inventory(
+    current_user=Depends(require_permissions(["inventory:export"])),
+    db: AsyncSession = Depends(get_db),
+):
+    items = await list_items(db, current_user.tenant_id)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["item_type", "item_no", "color_id", "condition", "qty_available", "unit_price"])
+    for item in items:
+        writer.writerow(
+            [
+                item.item_type,
+                item.item_no,
+                item.color_id or "",
+                item.condition,
+                item.qty_available,
+                item.unit_price or "",
+            ]
+        )
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=inventory.csv"},
+    )
+
+
 @router.get("/{item_id}", response_model=InventoryItemOut)
 async def get_inventory(
     item_id: UUID,
@@ -174,31 +202,3 @@ async def import_inventory(
     )
     await db.commit()
     return job
-
-
-@router.get("/export")
-async def export_inventory(
-    current_user=Depends(require_permissions(["inventory:export"])),
-    db: AsyncSession = Depends(get_db),
-):
-    items = await list_items(db, current_user.tenant_id)
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["item_type", "item_no", "color_id", "condition", "qty_available", "unit_price"])
-    for item in items:
-        writer.writerow(
-            [
-                item.item_type,
-                item.item_no,
-                item.color_id or "",
-                item.condition,
-                item.qty_available,
-                item.unit_price or "",
-            ]
-        )
-    output.seek(0)
-    return StreamingResponse(
-        output,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=inventory.csv"},
-    )

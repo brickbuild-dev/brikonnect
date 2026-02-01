@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import { apiFetch } from '../lib/api'
+import { Skeleton } from '../components/Skeleton'
 
 type SyncRun = {
   id: string
@@ -83,12 +84,15 @@ export function SyncRunDetailPage() {
           </div>
         </div>
       ) : (
-        <div className="mt-6 text-sm text-slate-500">Loading run...</div>
+        <div className="mt-6 space-y-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-24 w-full" />
+        </div>
       )}
 
       <div className="mt-8">
         <h2 className="text-lg font-semibold">Plan items</h2>
-        <div className="mt-4 overflow-hidden rounded-lg border bg-white">
+        <div className="mt-4 overflow-x-auto rounded-lg border bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>

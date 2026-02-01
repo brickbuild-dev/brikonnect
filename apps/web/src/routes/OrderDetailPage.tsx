@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import { apiFetch } from '../lib/api'
+import { Skeleton } from '../components/Skeleton'
 
 type OrderLine = {
   id: string
@@ -71,7 +72,12 @@ export function OrderDetailPage() {
   }
 
   if (orderQuery.isLoading || !orderQuery.data) {
-    return <div className="text-sm text-slate-500">Loading order...</div>
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    )
   }
 
   const order = orderQuery.data
@@ -113,7 +119,7 @@ export function OrderDetailPage() {
         {message ? <p className="mt-2 text-sm text-emerald-600">{message}</p> : null}
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-lg border bg-white">
+      <div className="mt-6 overflow-x-auto rounded-lg border bg-white">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
@@ -140,7 +146,10 @@ export function OrderDetailPage() {
       <div className="mt-6 rounded-lg border bg-white p-4">
         <h2 className="text-sm font-medium text-slate-700">History</h2>
         {historyQuery.isLoading ? (
-          <div className="mt-2 text-sm text-slate-500">Loading history...</div>
+          <div className="mt-2 space-y-2">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-4 w-40" />
+          </div>
         ) : (
           <ul className="mt-2 space-y-2 text-sm text-slate-600">
             {historyQuery.data?.map((event) => (

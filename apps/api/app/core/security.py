@@ -5,17 +5,24 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
+import bcrypt
 from passlib.context import CryptContext
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__truncate_error=False)
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    try:
+        return pwd_context.hash(password)
+    except ValueError:
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode()
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return pwd_context.verify(password, password_hash)
+    try:
+        return pwd_context.verify(password, password_hash)
+    except ValueError:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 def new_session_token() -> str:
     return secrets.token_urlsafe(48)

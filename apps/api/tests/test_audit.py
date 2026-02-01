@@ -28,18 +28,18 @@ async def seed_owner(db_session, slug: str, email: str, password: str):
 
 @pytest.mark.asyncio
 async def test_audit_revert_inventory(db_session):
-    await seed_owner(db_session, "audit", "owner@audit.local", "audit123")
+    await seed_owner(db_session, "audit", "owner@audit.example.com", "audit123")
 
     headers = {"host": "audit.brikonnect.com"}
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
-            json={"email": "owner@audit.local", "password": "audit123"},
+            json={"email": "owner@audit.example.com", "password": "audit123"},
         )
         assert login.status_code == 200
 
         create_resp = await ac.post(
-            "/api/v1/inventory",
+            "/api/v1/inventory/",
             json={
                 "item_type": "PART",
                 "item_no": "3001",
@@ -56,13 +56,13 @@ async def test_audit_revert_inventory(db_session):
         assert update_resp.status_code == 200
 
         audit_resp = await ac.get(
-            "/api/v1/audit",
+            "/api/v1/audit/",
             params={"entity_type": "inventory_item", "entity_id": item["id"]},
         )
         assert audit_resp.status_code == 200
         logs = audit_resp.json()
         assert logs
-        latest = logs[0]
+        latest = next(log for log in logs if log.get("before_state"))
 
         revert_resp = await ac.post(f"/api/v1/audit/{latest['id']}/revert")
         assert revert_resp.status_code == 200

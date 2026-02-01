@@ -4,6 +4,11 @@ from fastapi import APIRouter
 
 from app.modules.audit import router as audit_router
 from app.modules.auth import router as auth_router
+from app.modules.billing import router as billing_router
+from app.modules.brickognize import router as brickognize_router
+from app.modules.catalog import router as catalog_router
+from app.modules.shipping import router as shipping_router
+from app.modules.notifications import router as notifications_router
 from app.modules.inventory import router as inventory_router
 from app.modules.jobs import router as jobs_router
 from app.modules.locations import router as locations_router
@@ -23,6 +28,11 @@ api_router.include_router(tenants_router.router, prefix="/tenants", tags=["tenan
 api_router.include_router(users_router.router, prefix="/users", tags=["users"])
 api_router.include_router(rbac_router.router, prefix="/roles", tags=["rbac"])
 api_router.include_router(audit_router.router, prefix="/audit", tags=["audit"])
+api_router.include_router(billing_router.router)
+api_router.include_router(catalog_router.router)
+api_router.include_router(brickognize_router.router)
+api_router.include_router(shipping_router.router)
+api_router.include_router(notifications_router.router)
 api_router.include_router(inventory_router.router, prefix="/inventory", tags=["inventory"])
 api_router.include_router(locations_router.router, prefix="/locations", tags=["locations"])
 api_router.include_router(jobs_router.router, prefix="/jobs", tags=["jobs"])

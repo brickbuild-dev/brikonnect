@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import { apiFetch } from '../lib/api'
+import { Skeleton } from '../components/Skeleton'
 
 type InventoryItem = {
   id: string
@@ -43,7 +44,12 @@ export function InventoryDetailPage() {
   }
 
   if (isLoading || !data) {
-    return <div className="text-sm text-slate-500">Loading item...</div>
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    )
   }
 
   return (

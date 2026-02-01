@@ -175,12 +175,16 @@ async def bulk_upsert(
             item = await get_item(db, tenant_id, payload.id)
             if not item:
                 raise InventoryValidationError("Inventory item not found for update.")
-            update_payload = InventoryItemUpdate(**payload.model_dump(exclude={"id"}))
+            update_payload = InventoryItemUpdate(
+                **payload.model_dump(exclude={"id"}, exclude_unset=True)
+            )
             item = await update_item(db, item, tenant_id, update_payload)
             results.append(item)
         else:
             _validate_required_for_create(payload)
-            create_payload = InventoryItemCreate(**payload.model_dump(exclude={"id"}))
+            create_payload = InventoryItemCreate(
+                **payload.model_dump(exclude={"id"}, exclude_unset=True)
+            )
             item = await create_item(db, tenant_id, create_payload)
             results.append(item)
     return results

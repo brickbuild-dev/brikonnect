@@ -28,18 +28,18 @@ async def seed_owner(db_session, slug: str, email: str, password: str):
 
 @pytest.mark.asyncio
 async def test_sync_preview_and_apply(db_session):
-    await seed_owner(db_session, "sync", "owner@sync.local", "sync123")
+    await seed_owner(db_session, "sync", "owner@sync.example.com", "sync123")
 
     headers = {"host": "sync.brikonnect.com"}
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
-            json={"email": "owner@sync.local", "password": "sync123"},
+            json={"email": "owner@sync.example.com", "password": "sync123"},
         )
         assert login.status_code == 200
 
         source_store = await ac.post(
-            "/api/v1/stores",
+            "/api/v1/stores/",
             json={
                 "channel": "bricklink",
                 "name": "BrickLink",
@@ -71,7 +71,7 @@ async def test_sync_preview_and_apply(db_session):
         assert source_store.status_code == 201
 
         target_store = await ac.post(
-            "/api/v1/stores",
+            "/api/v1/stores/",
             json={
                 "channel": "brickowl",
                 "name": "BrickOwl",
@@ -126,7 +126,7 @@ async def test_sync_preview_and_apply(db_session):
         assert approve.status_code == 200
         assert approve.json()["run"]["status"] == "COMPLETED"
 
-        items = await ac.get("/api/v1/inventory")
+        items = await ac.get("/api/v1/inventory/")
         assert items.status_code == 200
         item_nos = {item["item_no"] for item in items.json()}
         assert "3001" in item_nos

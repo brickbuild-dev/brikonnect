@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     ENFORCE_TENANT_HOST: bool = True
 
     LOG_LEVEL: str = "INFO"
+    SENTRY_DSN: str | None = None
 
     FEATURES: dict = {
         "multi_tenant": True,

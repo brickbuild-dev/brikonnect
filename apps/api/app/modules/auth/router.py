@@ -1,4 +1,4 @@
-from __future__ import annotations
+from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.security import new_csrf_token, verify_password, utcnow
 from app.db.session import get_db
+from app.middleware.rate_limit import limiter
 from app.modules.auth import service as auth_service
 from app.modules.auth.deps import get_current_tenant, get_current_user, resolve_tenant
 from app.modules.auth.schemas import (
@@ -24,6 +25,7 @@ router = APIRouter()
 
 
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit("5/minute")
 async def login(
     payload: LoginRequest,
     request: Request,
@@ -113,7 +115,10 @@ async def refresh_token(
         await db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked")
 
-    if refresh.expires_at <= utcnow():
+    expires_at = refresh.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= utcnow():
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
 
     if settings.ENFORCE_TENANT_HOST:

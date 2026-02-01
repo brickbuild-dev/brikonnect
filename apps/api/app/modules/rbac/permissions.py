@@ -8,6 +8,17 @@ PERMISSIONS: list[str] = [
     "inventory:delete",
     "inventory:import",
     "inventory:export",
+    # Catalog
+    "catalog:read",
+    "catalog:import",
+    # Brickognize
+    "brickognize:use",
+    # Shipping
+    "shipping:read",
+    "shipping:manage",
+    # Email/Notifications
+    "email:manage",
+    "notifications:read",
     # Orders
     "orders:read",
     "orders:write",
@@ -54,6 +65,14 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "inventory:delete",
         "inventory:import",
         "inventory:export",
+        # Catalog
+        "catalog:read",
+        # Brickognize
+        "brickognize:use",
+        # Shipping
+        "shipping:read",
+        # Notifications
+        "notifications:read",
         # Orders
         "orders:read",
         "orders:write",
@@ -86,8 +105,12 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
     ],
     "readonly": [
         "inventory:read",
+        "catalog:read",
         "orders:read",
         "stores:read",
         "picker:read",
+        "brickognize:use",
+        "shipping:read",
+        "notifications:read",
     ],
 }

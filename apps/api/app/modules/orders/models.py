@@ -4,10 +4,11 @@ import uuid
 from decimal import Decimal
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import JSONBCompatible
 
 
 class Order(Base):
@@ -20,7 +21,6 @@ class Order(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -34,14 +34,14 @@ class Order(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'NEW'"))
     status_changed_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     buyer_name: Mapped[str | None] = mapped_column(String(200))
     buyer_email: Mapped[str | None] = mapped_column(String(320))
     buyer_username: Mapped[str | None] = mapped_column(String(100))
 
-    ship_to: Mapped[dict | None] = mapped_column(JSONB)
+    ship_to: Mapped[dict | None] = mapped_column(JSONBCompatible)
     shipping_method: Mapped[str | None] = mapped_column(String(50))
 
     subtotal: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
@@ -55,10 +55,13 @@ class Order(Base):
     paid_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     shipped_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
 
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
-        server_default=text("now()"),
+        server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now(),
     )
 
@@ -75,7 +78,6 @@ class OrderLine(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -109,7 +111,10 @@ class OrderLine(Base):
     line_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
 
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'PENDING'"))
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
     order = relationship("Order", back_populates="lines")
 
@@ -121,7 +126,6 @@ class OrderStatusEvent(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -142,6 +146,9 @@ class OrderStatusEvent(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
     )
     notes: Mapped[str | None] = mapped_column(Text)
-    changed_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    changed_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
     order = relationship("Order", back_populates="status_events")

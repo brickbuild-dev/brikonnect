@@ -3,10 +3,11 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, text
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.types import ArrayOfStrings
 
 
 class Webhook(Base):
@@ -16,7 +17,6 @@ class Webhook(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -26,10 +26,16 @@ class Webhook(Base):
     )
     url: Mapped[str] = mapped_column(Text, nullable=False)
     secret: Mapped[str] = mapped_column(String(64), nullable=False)
-    events: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default=text("'{}'"))
+    events: Mapped[list[str]] = mapped_column(ArrayOfStrings, nullable=False, server_default=text("'[]'"))
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
-    updated_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    updated_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
     deliveries = relationship("WebhookDelivery", back_populates="webhook", cascade="all, delete-orphan")
 
@@ -41,7 +47,6 @@ class WebhookDelivery(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        server_default=text("gen_random_uuid()"),
     )
     webhook_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -61,6 +66,9 @@ class WebhookDelivery(Base):
     response_status: Mapped[int | None] = mapped_column(Integer)
     response_body: Mapped[str | None] = mapped_column(Text)
     error_message: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
 
     webhook = relationship("Webhook", back_populates="deliveries")

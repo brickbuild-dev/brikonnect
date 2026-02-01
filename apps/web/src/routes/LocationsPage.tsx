@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 import { apiFetch } from '../lib/api'
+import { Skeleton } from '../components/Skeleton'
 
 type Location = {
   id: string
@@ -76,9 +77,12 @@ export function LocationsPage() {
       </form>
 
       {isLoading ? (
-        <div className="mt-6 text-sm text-slate-500">Loading locations...</div>
+        <div className="mt-6 space-y-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border bg-white">
+        <div className="mt-6 overflow-x-auto rounded-lg border bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>

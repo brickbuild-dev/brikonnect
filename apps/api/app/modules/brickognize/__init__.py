@@ -1,0 +1,1 @@
+"""Brickognize module."""

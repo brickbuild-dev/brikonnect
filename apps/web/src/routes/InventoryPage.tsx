@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
-import { apiFetch } from '../lib/api'
+import { apiFetch, apiUpload } from '../lib/api'
+import { Skeleton } from '../components/Skeleton'
 
 type InventoryItem = {
   id: string
@@ -17,6 +18,10 @@ type InventoryItem = {
 export function InventoryPage() {
   const [search, setSearch] = useState('')
   const [importJob, setImportJob] = useState<string | null>(null)
+  const [brickognizeResults, setBrickognizeResults] = useState<
+    { item_no: string; confidence: number }[]
+  >([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['inventory', search],
     queryFn: () =>
@@ -28,6 +33,16 @@ export function InventoryPage() {
   const handleImport = async () => {
     const job = await apiFetch<{ id: string }>('/inventory/import', { method: 'POST' })
     setImportJob(job.id)
+  }
+
+  const handleIdentify = async (file: File) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    const result = await apiUpload<{ predictions: { item_no: string; confidence: number }[] }>(
+      '/brickognize/identify',
+      formData
+    )
+    setBrickognizeResults(result.predictions)
   }
 
   return (
@@ -44,7 +59,7 @@ export function InventoryPage() {
       {importJob ? (
         <p className="mt-2 text-xs text-slate-500">Import job: {importJob}</p>
       ) : null}
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <input
           className="w-64 rounded-md border px-3 py-2 text-sm"
           placeholder="Search by part number or description"
@@ -57,12 +72,46 @@ export function InventoryPage() {
         >
           Filter
         </button>
+        <button
+          className="rounded-md border px-3 py-2 text-sm text-slate-600"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          Identify part
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (file) {
+              void handleIdentify(file)
+            }
+          }}
+        />
       </div>
 
+      {brickognizeResults.length ? (
+        <div className="mt-4 rounded-lg border bg-white p-3 text-sm">
+          <div className="font-medium text-slate-700">Brickognize results</div>
+          <ul className="mt-2 space-y-1 text-slate-600">
+            {brickognizeResults.map((prediction) => (
+              <li key={prediction.item_no}>
+                {prediction.item_no} · {(prediction.confidence * 100).toFixed(1)}%
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {isLoading ? (
-        <div className="mt-6 text-sm text-slate-500">Loading inventory...</div>
+        <div className="mt-6 space-y-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border bg-white">
+        <div className="mt-6 overflow-x-auto rounded-lg border bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>

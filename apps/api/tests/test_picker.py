@@ -28,21 +28,21 @@ async def seed_owner(db_session, slug: str, email: str, password: str):
 
 @pytest.mark.asyncio
 async def test_picker_flow(db_session):
-    await seed_owner(db_session, "pick", "owner@pick.local", "pick123")
+    await seed_owner(db_session, "pick", "owner@pick.example.com", "pick123")
 
     headers = {"host": "pick.brikonnect.com"}
     async with AsyncClient(app=app, base_url="http://test", headers=headers) as ac:
         login = await ac.post(
             "/api/v1/auth/login",
-            json={"email": "owner@pick.local", "password": "pick123"},
+            json={"email": "owner@pick.example.com", "password": "pick123"},
         )
         assert login.status_code == 200
 
-        location_resp = await ac.post("/api/v1/locations", json={"code": "P-01"})
+        location_resp = await ac.post("/api/v1/locations/", json={"code": "P-01"})
         location_id = location_resp.json()["id"]
 
         item_resp = await ac.post(
-            "/api/v1/inventory",
+            "/api/v1/inventory/",
             json={
                 "item_type": "PART",
                 "item_no": "3001",
@@ -54,7 +54,7 @@ async def test_picker_flow(db_session):
         item_id = item_resp.json()["id"]
 
         order_resp = await ac.post(
-            "/api/v1/orders",
+            "/api/v1/orders/",
             json={
                 "external_order_id": "PICK-1",
                 "status": "NEW",
