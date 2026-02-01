@@ -373,20 +373,20 @@ function SidePanelApp() {
             Sign in to manage picking and sync.
           </p>
         </div>
-        <div className="panel-card space-y-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-3">
           <div>
-            <label className="panel-label">Email</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">Email</label>
             <input
-              className="panel-input mt-2"
+              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 mt-2"
               placeholder="you@store.com"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
           </div>
           <div>
-            <label className="panel-label">Password</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">Password</label>
             <input
-              className="panel-input mt-2"
+              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 mt-2"
               type="password"
               placeholder="••••••••"
               value={password}
@@ -394,7 +394,7 @@ function SidePanelApp() {
             />
           </div>
           {error ? <p className="text-xs text-rose-500">{error}</p> : null}
-          <button className="panel-button w-full" onClick={() => void handleLogin()} disabled={loading}>
+          <button className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 w-full" onClick={() => void handleLogin()} disabled={loading}>
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </div>
@@ -443,15 +443,15 @@ function SidePanelApp() {
         {activeTab === 'dashboard' ? (
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="panel-card">
-                <div className="panel-label">Active sessions</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Active sessions</div>
                 <div className="mt-2 text-2xl font-semibold">{stats.activeSessions}</div>
                 <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {stats.pickedProgress}% items picked
                 </div>
               </div>
-              <div className="panel-card">
-                <div className="panel-label">Unread alerts</div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Unread alerts</div>
                 <div className="mt-2 flex items-center gap-2 text-2xl font-semibold">
                   <Bell className="h-5 w-5 text-amber-500" />
                   {stats.unreadNotifications}
@@ -462,7 +462,7 @@ function SidePanelApp() {
               </div>
             </div>
 
-            <div className="panel-card">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold">Notifications</div>
                 <button
@@ -493,25 +493,25 @@ function SidePanelApp() {
 
         {activeTab === 'orders' ? (
           <div className="space-y-4">
-            <div className="panel-card space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-3">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <Search className="h-4 w-4" /> Order lookup
               </div>
               <input
-                className="panel-input"
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                 placeholder="Search by order ID, buyer, or email"
                 value={orderQuery}
                 onChange={(event) => setOrderQuery(event.target.value)}
               />
-              <button className="panel-button" onClick={() => void handleOrderSearch()} disabled={orderLoading}>
+              <button className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200" onClick={() => void handleOrderSearch()} disabled={orderLoading}>
                 {orderLoading ? 'Searching...' : 'Search orders'}
               </button>
               {orderError ? <p className="text-xs text-rose-500">{orderError}</p> : null}
             </div>
 
-            <div className="panel-card space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <select className="panel-input max-w-[180px]" value={orderStatus} onChange={(e) => setOrderStatus(e.target.value)}>
+                <select className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 max-w-[180px]" value={orderStatus} onChange={(e) => setOrderStatus(e.target.value)}>
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>
                       {status}
@@ -534,7 +534,7 @@ function SidePanelApp() {
                     <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                       {order.buyer_name ?? 'Unknown buyer'}
                     </div>
-                    <button className="panel-button mt-3" onClick={() => void handleOrderStatusUpdate(order.id)}>
+                    <button className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 mt-3" onClick={() => void handleOrderStatusUpdate(order.id)}>
                       <CheckCircle2 className="h-4 w-4" /> Update status
                     </button>
                   </div>
@@ -549,7 +549,7 @@ function SidePanelApp() {
 
         {activeTab === 'picking' ? (
           <div className="space-y-4">
-            <div className="panel-card">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <ClipboardList className="h-4 w-4" /> Picking sessions
@@ -588,7 +588,7 @@ function SidePanelApp() {
             </div>
 
             {selectedSession ? (
-              <div className="panel-card space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold">Session progress</div>
@@ -597,10 +597,10 @@ function SidePanelApp() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
-                    <button className="panel-button" onClick={() => void handleUpdateSession('ACTIVE')}>
+                    <button className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200" onClick={() => void handleUpdateSession('ACTIVE')}>
                       Start
                     </button>
-                    <button className="panel-button" onClick={() => void handleUpdateSession('COMPLETED')}>
+                    <button className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200" onClick={() => void handleUpdateSession('COMPLETED')}>
                       Complete
                     </button>
                   </div>
@@ -640,7 +640,7 @@ function SidePanelApp() {
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
                           <button
-                            className="panel-button"
+                            className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
                             onClick={() => void handlePickAction(item, 'PICKED')}
                           >
                             Picked
@@ -666,7 +666,7 @@ function SidePanelApp() {
 
         {activeTab === 'sync' ? (
           <div className="space-y-4">
-            <div className="panel-card space-y-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <RefreshCcw className="h-4 w-4" /> Sync status
               </div>
@@ -675,13 +675,13 @@ function SidePanelApp() {
                   ? `Latest: ${syncRuns[0].status} (add ${syncRuns[0].plan_summary?.add ?? 0})`
                   : 'No sync runs yet.'}
               </div>
-              <button className="panel-button" onClick={() => void handleQuickSync()}>
+              <button className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200" onClick={() => void handleQuickSync()}>
                 Run quick preview
               </button>
               {syncStatus ? <p className="text-xs text-emerald-600">{syncStatus}</p> : null}
             </div>
 
-            <div className="panel-card space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-3">
               <div className="text-sm font-semibold">Stores</div>
               <div className="space-y-2 text-xs text-slate-500 dark:text-slate-400">
                 {stores.map((store) => (
@@ -700,7 +700,7 @@ function SidePanelApp() {
               </div>
             </div>
 
-            <div className="panel-card space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-3">
               <div className="text-sm font-semibold">Recent runs</div>
               <div className="space-y-2">
                 {syncRuns.slice(0, 3).map((run) => (
@@ -719,7 +719,7 @@ function SidePanelApp() {
 
         {activeTab === 'settings' ? (
           <div className="space-y-4">
-            <div className="panel-card space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-3">
               <div className="text-sm font-semibold">Theme</div>
               <div className="flex items-center gap-2">
                 <button
@@ -758,14 +758,14 @@ function SidePanelApp() {
               </div>
             </div>
 
-            <div className="panel-card space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-3">
               <div className="text-sm font-semibold">API base URL</div>
               <input
-                className="panel-input"
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                 value={apiBaseUrl}
                 onChange={(event) => setApiBaseUrlState(event.target.value)}
               />
-              <button className="panel-button" onClick={() => void handleSaveSettings()}>
+              <button className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200" onClick={() => void handleSaveSettings()}>
                 Save settings
               </button>
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -773,13 +773,13 @@ function SidePanelApp() {
               </p>
             </div>
 
-            <div className="panel-card space-y-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-2">
               <div className="text-sm font-semibold">Notifications</div>
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 Unread: {unreadCount}
               </div>
               <button
-                className="panel-button"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
                   onClick={() => void refreshNotifications()}
               >
                 Refresh notifications
