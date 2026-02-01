@@ -115,7 +115,7 @@ export function SyncPage() {
 
       <div className="mt-8">
         <h2 className="text-lg font-semibold">Recent runs</h2>
-        <div className="mt-4 overflow-hidden rounded-lg border bg-white">
+        <div className="mt-4 overflow-x-auto rounded-lg border bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
