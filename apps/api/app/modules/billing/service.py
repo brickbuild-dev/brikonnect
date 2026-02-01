@@ -61,15 +61,36 @@ def _period_datetime_bounds(start: date, end: date) -> tuple[datetime, datetime]
     return start_dt, end_dt
 
 
+def _is_sqlite(db: AsyncSession) -> bool:
+    bind = db.get_bind()
+    return bool(bind and bind.dialect.name == "sqlite")
+
+
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
 async def calculate_gmv(
     db: AsyncSession,
     tenant_id,
     period_start: date,
     period_end: date,
 ) -> Decimal:
-    start_dt, end_dt = _period_datetime_bounds(period_start, period_end)
+    if _is_sqlite(db):
+        orders = await _fetch_orders(db, tenant_id, period_start, period_end)
+        total = Decimal("0")
+        for order in orders:
+            amount = _as_decimal(order.grand_total) if order.grand_total is not None else _as_decimal(order.subtotal)
+            total += amount
+        return total
+
     order_ts = func.coalesce(Order.ordered_at, Order.created_at)
     amount_expr = func.coalesce(Order.grand_total, Order.subtotal, 0)
+    start_dt, end_dt = _period_datetime_bounds(period_start, period_end)
     stmt = (
         select(func.coalesce(func.sum(amount_expr), 0))
         .where(Order.tenant_id == tenant_id)
@@ -86,8 +107,22 @@ async def _fetch_orders(
     period_start: date,
     period_end: date,
 ) -> list[Order]:
-    start_dt, end_dt = _period_datetime_bounds(period_start, period_end)
     order_ts = func.coalesce(Order.ordered_at, Order.created_at)
+    if _is_sqlite(db):
+        stmt = select(Order).where(Order.tenant_id == tenant_id).order_by(order_ts.asc())
+        result = await db.execute(stmt)
+        orders = list(result.scalars().all())
+        filtered: list[Order] = []
+        for order in orders:
+            when = _normalize_datetime(order.ordered_at or order.created_at)
+            if when is None:
+                continue
+            when_date = when.date()
+            if period_start <= when_date <= period_end:
+                filtered.append(order)
+        return filtered
+
+    start_dt, end_dt = _period_datetime_bounds(period_start, period_end)
     stmt = (
         select(Order)
         .where(Order.tenant_id == tenant_id)
